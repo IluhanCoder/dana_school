@@ -45,6 +45,9 @@ export default function SubjectDetailPage() {
   const [lessonDeleteModalOpen, setLessonDeleteModalOpen] = useState(false);
   const [lessonForDelete, setLessonForDelete] = useState<{ journalId: string; lessonId: string; topic: string } | null>(null);
   const [deletingLesson, setDeletingLesson] = useState(false);
+  const [editingLessonTopic, setEditingLessonTopic] = useState<{ journalId: string; lessonId: string } | null>(null);
+  const [editingLessonTopicValue, setEditingLessonTopicValue] = useState("");
+  const [savingLessonTopic, setSavingLessonTopic] = useState(false);
   const role = authService.getRole();
   const isAdmin = authService.isAdmin();
   const canToggleArchivedStudents = role !== "student";
@@ -388,6 +391,61 @@ export default function SubjectDetailPage() {
     }
   };
 
+  const handleStartEditLessonTopic = (journalId: string, lessonId: string, topic: string) => {
+    if (!isAdmin && !isTeacherOfSubject()) return;
+    setEditingLessonTopic({ journalId, lessonId });
+    setEditingLessonTopicValue(topic || "");
+  };
+
+  const handleCancelEditLessonTopic = () => {
+    setEditingLessonTopic(null);
+    setEditingLessonTopicValue("");
+  };
+
+  const handleSaveLessonTopic = async (journalId: string, lessonId: string) => {
+    if (!editingLessonTopic || editingLessonTopic.journalId !== journalId || editingLessonTopic.lessonId !== lessonId) return;
+
+    const nextTopic = editingLessonTopicValue.trim();
+    if (!nextTopic) {
+      setError("Тема уроку обов'язкова");
+      return;
+    }
+
+    try {
+      setSavingLessonTopic(true);
+      setError("");
+      const response = await $api.patch<ApiResponse<Lesson>>(`/subjects/journals/${journalId}/lessons/${lessonId}/topic`, {
+        topic: nextTopic,
+      });
+      const resp = response.data;
+      if (!resp.success) {
+        setError(resp.error || "Не вдалося оновити тему уроку");
+        return;
+      }
+
+      setDetail((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          journals: prev.journals.map((j) => {
+            if (j.id !== journalId) return j;
+            return {
+              ...j,
+              lessons: (j.lessons || []).map((lesson) => (lesson.id === lessonId ? resp.data : lesson)),
+            };
+          }),
+        };
+      });
+
+      setEditingLessonTopic(null);
+      setEditingLessonTopicValue("");
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || "Не вдалося оновити тему уроку");
+    } finally {
+      setSavingLessonTopic(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -437,7 +495,7 @@ export default function SubjectDetailPage() {
             ← Назад
           </button>
 
-          {(isAdmin || isTeacherOfSubject()) && (
+          {(isAdmin || isTeacherOfSubject() || role === "student") && (
             <button
               onClick={() => navigate(`/subjects/${id}/materials`)}
               className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors ml-4"
@@ -624,19 +682,57 @@ export default function SubjectDetailPage() {
                           {sortedLessons.map((lesson) => (
                             <th key={lesson.id} className="px-4 py-3 text-center font-medium text-gray-900 min-w-[120px]">
                               <div className="flex flex-col items-center">
-                                <span className="font-semibold">{lesson.topic}</span>
+                                {editingLessonTopic?.journalId === journal.id && editingLessonTopic?.lessonId === lesson.id ? (
+                                  <div className="flex flex-col items-center gap-2 w-full max-w-[180px]">
+                                    <input
+                                      type="text"
+                                      value={editingLessonTopicValue}
+                                      onChange={(e) => setEditingLessonTopicValue(e.target.value)}
+                                      className="w-full px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                                      autoFocus
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleSaveLessonTopic(journal.id, lesson.id)}
+                                        disabled={savingLessonTopic}
+                                        className="px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button
+                                        onClick={handleCancelEditLessonTopic}
+                                        disabled={savingLessonTopic}
+                                        className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="font-semibold">{lesson.topic}</span>
+                                )}
                                 <span className="text-xs text-gray-500 font-normal mt-1">
                                   {lesson.date ? new Date(lesson.date).toLocaleDateString("uk-UA") : ""}
                                 </span>
                                 {(isAdmin || isTeacherOfSubject()) && (
-                                  <button
-                                    onClick={() => handleDeleteLesson(journal.id, lesson.id, lesson.topic)}
-                                    disabled={deletingLesson}
-                                    className="mt-2 w-6 h-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                                    title="Видалити урок"
-                                  >
-                                    ×
-                                  </button>
+                                  <div className="mt-2 flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleStartEditLessonTopic(journal.id, lesson.id, lesson.topic)}
+                                      disabled={savingLessonTopic || deletingLesson}
+                                      className="w-6 h-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                                      title="Змінити тему уроку"
+                                    >
+                                      ✎
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteLesson(journal.id, lesson.id, lesson.topic)}
+                                      disabled={deletingLesson || savingLessonTopic}
+                                      className="w-6 h-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                                      title="Видалити урок"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </th>

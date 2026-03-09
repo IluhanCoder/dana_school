@@ -7,6 +7,15 @@ import googleStorageService from "../services/google-storage.service";
 import journalModel from "../journal/journal-model";
 
 export default new class SubjectService {
+  private titleFromStoragePath(storagePath: string): string {
+    const fileName = (storagePath || "").split("/").filter(Boolean).pop() || "PDF матеріал";
+    try {
+      return decodeURIComponent(fileName);
+    } catch {
+      return fileName;
+    }
+  }
+
   private mapMaterial(material: any): ISubjectMaterialResponse {
     const uploadedBy = material?.uploadedBy || {};
     return {
@@ -35,6 +44,25 @@ export default new class SubjectService {
         throw new Error("Forbidden");
       }
     }
+  }
+
+  private async ensureMaterialsReadAccess(subject: any, user?: { id: string; role?: string; grade?: number } | null) {
+    if (!user) {
+      throw new Error("Forbidden");
+    }
+
+    if (user.role === "admin" || user.role === "teacher") {
+      this.ensureTeacherOrAdminAccess(subject, user);
+      return;
+    }
+
+    if (user.role !== "student") {
+      throw new Error("Forbidden");
+    }
+
+    // Students have read-only access to materials. Write operations remain
+    // restricted by route-level role checks and ensureTeacherOrAdminAccess.
+    return;
   }
 
   private mapSubject(subject: any): ISubjectResponse {
@@ -187,7 +215,7 @@ export default new class SubjectService {
 
   async getSubjectMaterials(
     subjectId: string,
-    user?: { id: string; role?: string } | null
+    user?: { id: string; role?: string; grade?: number } | null
   ): Promise<ISubjectMaterialResponse[]> {
     const subject = await subjectModel
       .findById(subjectId)
@@ -198,11 +226,15 @@ export default new class SubjectService {
       throw new Error("Subject not found");
     }
 
-    this.ensureTeacherOrAdminAccess(subject, user);
+    await this.ensureMaterialsReadAccess(subject, user);
 
     const materials = [...((subject as any).materials || [])].sort(
       (a: any, b: any) =>
         new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime()
+    );
+
+    const existingStoragePaths = new Set<string>(
+      materials.map((material: any) => material?.storagePath).filter(Boolean)
     );
 
     const mapped = await Promise.all(
@@ -222,7 +254,44 @@ export default new class SubjectService {
       })
     );
 
-    return mapped;
+    let discoveredFromBucket: ISubjectMaterialResponse[] = [];
+    try {
+      const listed = await googleStorageService.listFilesByPrefixDetailed(`subjects/${subjectId}/`);
+      const pdfFiles = listed.filter((file) => file.storagePath.toLowerCase().endsWith(".pdf"));
+
+      discoveredFromBucket = await Promise.all(
+        pdfFiles
+          .filter((file) => !existingStoragePaths.has(file.storagePath))
+          .map(async (file) => {
+            let url = "";
+            try {
+              url = await googleStorageService.getSignedReadUrl(file.storagePath);
+            } catch {
+              url = "";
+            }
+
+            return {
+              id: `gcs:${file.storagePath}`,
+              title: this.titleFromStoragePath(file.storagePath),
+              url,
+              size: file.size,
+              mimeType: file.contentType || "application/pdf",
+              uploadedBy: {
+                id: "",
+                name: "Bucket scan",
+                email: "",
+              },
+              uploadedAt: file.updatedAt || new Date(),
+            };
+          })
+      );
+    } catch {
+      discoveredFromBucket = [];
+    }
+
+    return [...mapped, ...discoveredFromBucket].sort(
+      (a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime()
+    );
   }
 
   async uploadSubjectMaterial(
@@ -279,5 +348,58 @@ export default new class SubjectService {
       )[0];
 
     return this.mapMaterial(latestMaterial);
+  }
+
+  async deleteSubjectMaterial(
+    subjectId: string,
+    materialId: string,
+    user?: { id: string; role?: string } | null
+  ): Promise<{ id: string }> {
+    const subject = await subjectModel
+      .findById(subjectId)
+      .populate("teacher", "name email role")
+      .populate("materials.uploadedBy", "name email");
+
+    if (!subject) {
+      throw new Error("Subject not found");
+    }
+
+    this.ensureTeacherOrAdminAccess(subject, user);
+
+    const materials = ((subject as any).materials || []) as any[];
+    const normalizedMaterialId = decodeURIComponent(materialId || "");
+
+    let storagePath = "";
+    let deletedId = normalizedMaterialId;
+    let shouldSaveSubject = false;
+
+    if (normalizedMaterialId.startsWith("gcs:")) {
+      storagePath = normalizedMaterialId.slice(4);
+      if (!storagePath) {
+        throw new Error("Material not found");
+      }
+    } else {
+      const material = materials.find((m: any) => m?._id?.toString() === normalizedMaterialId);
+      if (!material) {
+        throw new Error("Material not found");
+      }
+
+      storagePath = material.storagePath;
+      deletedId = material._id?.toString() || normalizedMaterialId;
+      (subject as any).materials = materials.filter((m: any) => m?._id?.toString() !== deletedId);
+      shouldSaveSubject = true;
+    }
+
+    if (!storagePath.startsWith(`subjects/${subjectId}/`)) {
+      throw new Error("Forbidden");
+    }
+
+    await googleStorageService.deleteFile(storagePath);
+
+    if (shouldSaveSubject) {
+      await subject.save();
+    }
+
+    return { id: deletedId };
   }
 }();

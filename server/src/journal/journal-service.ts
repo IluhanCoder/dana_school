@@ -268,6 +268,39 @@ export default new class JournalService {
     return await this.mapLesson(populatedLesson, journalGrade);
   }
 
+  async updateLessonTopic(
+    journalId: string,
+    lessonId: string,
+    topic: string,
+    user?: { id: string; role?: string } | null
+  ): Promise<ILessonResponse> {
+    if (!topic?.trim()) {
+      throw new Error("Lesson topic is required");
+    }
+
+    const journal = await journalModel.findById(journalId).populate({ path: "subject" });
+    if (!journal) throw new Error("Journal not found");
+
+    if (user?.role === "teacher") {
+      const subjectTeacherId = (journal.subject as any)?.teacher?.toString();
+      if (subjectTeacherId && subjectTeacherId !== user.id) {
+        throw new Error("Forbidden");
+      }
+    }
+
+    const lessonIndex = (journal.lessons || []).findIndex((l: any) => l._id?.toString() === lessonId);
+    if (lessonIndex === -1) throw new Error("Lesson not found");
+
+    journal.lessons![lessonIndex].topic = topic.trim();
+    await journal.save();
+
+    const journalGrade = Number((journal as any).grade);
+    const populated = await journal.populate({ path: "lessons.marks.student", select: "name email grade isArchived archivedAt" });
+    const populatedLesson = (populated.lessons || [])[lessonIndex];
+
+    return await this.mapLesson(populatedLesson, journalGrade);
+  }
+
   private async mapJournal(journal: any): Promise<IJournalResponse> {
     const classDoc = journal.class as any;
     const grade = classDoc?.grade ?? journal.grade ?? 0;

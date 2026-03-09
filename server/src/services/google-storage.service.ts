@@ -5,6 +5,13 @@ type UploadResult = {
   storagePath: string;
 };
 
+export type ListedStorageFile = {
+  storagePath: string;
+  size: number;
+  updatedAt: Date;
+  contentType: string;
+};
+
 class GoogleStorageService {
   private readonly bucketName: string;
   private readonly storage: Storage;
@@ -89,6 +96,49 @@ class GoogleStorageService {
     });
 
     return url;
+  }
+
+  async downloadToBuffer(storagePath: string): Promise<Buffer> {
+    this.ensureConfigured();
+    const bucket = this.storage.bucket(this.bucketName);
+    const file = bucket.file(storagePath);
+    const [buffer] = await file.download();
+    return buffer;
+  }
+
+  async deleteFile(storagePath: string): Promise<void> {
+    this.ensureConfigured();
+    const bucket = this.storage.bucket(this.bucketName);
+    const file = bucket.file(storagePath);
+    await file.delete({ ignoreNotFound: true });
+  }
+
+  async listFilesByPrefix(prefix: string): Promise<string[]> {
+    this.ensureConfigured();
+    const bucket = this.storage.bucket(this.bucketName);
+    const [files] = await bucket.getFiles({ prefix });
+    return files
+      .map((file) => file.name)
+      .filter((name) => !!name && !name.endsWith("/"));
+  }
+
+  async listFilesByPrefixDetailed(prefix: string): Promise<ListedStorageFile[]> {
+    this.ensureConfigured();
+    const bucket = this.storage.bucket(this.bucketName);
+    const [files] = await bucket.getFiles({ prefix });
+
+    return files
+      .map((file) => {
+        const rawSize = Number(file.metadata?.size || 0);
+        const updated = file.metadata?.updated ? new Date(file.metadata.updated) : new Date();
+        return {
+          storagePath: file.name,
+          size: Number.isFinite(rawSize) ? rawSize : 0,
+          updatedAt: Number.isNaN(updated.getTime()) ? new Date() : updated,
+          contentType: file.metadata?.contentType || "application/octet-stream",
+        };
+      })
+      .filter((item) => !!item.storagePath && !item.storagePath.endsWith("/"));
   }
 }
 

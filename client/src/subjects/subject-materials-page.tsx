@@ -20,10 +20,13 @@ export default function SubjectMaterialsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const role = authService.getRole();
   const isAdmin = authService.isAdmin();
+  const canManageMaterials = role === "admin" || role === "teacher";
 
   useEffect(() => {
     if (!id) return;
@@ -103,6 +106,33 @@ export default function SubjectMaterialsPage() {
     }
   };
 
+  const handleDeleteMaterial = async (material: SubjectMaterial) => {
+    if (!id) return;
+
+    const confirmed = window.confirm(`Видалити PDF \"${material.title}\"?`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingMaterialId(material.id);
+      setError("");
+
+      const response = await $api.delete<ApiResponse<{ id: string }>>(
+        `/subjects/${id}/materials/${encodeURIComponent(material.id)}`
+      );
+
+      if (!response.data.success) {
+        setError(response.data.error || "Не вдалося видалити матеріал");
+        return;
+      }
+
+      setMaterials((prev) => prev.filter((item) => item.id !== material.id));
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || "Не вдалося видалити матеріал");
+    } finally {
+      setDeletingMaterialId(null);
+    }
+  };
+
   if (!id) {
     return <div className="p-6 text-red-600">Invalid subject ID</div>;
   }
@@ -131,43 +161,45 @@ export default function SubjectMaterialsPage() {
           </div>
         )}
 
-        <div className="card p-6 shadow-lg">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Завантажити PDF {isAdmin ? "(адміністратор)" : "(викладач)"}
-          </h2>
-          <form className="space-y-4" onSubmit={handleUpload}>
-            <input
-              ref={fileInputRef}
-              id="subject-material-file"
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => {
-                setSelectedFile(e.target.files?.[0] || null);
-                setError("");
-              }}
-              className="hidden"
-            />
-            <div className="flex items-center gap-3 flex-wrap">
+        {canManageMaterials && (
+          <div className="card p-6 shadow-lg">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Завантажити PDF {isAdmin ? "(адміністратор)" : "(викладач)"}
+            </h2>
+            <form className="space-y-4" onSubmit={handleUpload}>
+              <input
+                ref={fileInputRef}
+                id="subject-material-file"
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  setSelectedFile(e.target.files?.[0] || null);
+                  setError("");
+                }}
+                className="hidden"
+              />
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-secondary"
+                >
+                  Обрати PDF
+                </button>
+                <span className="text-sm text-gray-600">
+                  {selectedFile ? selectedFile.name : "Файл не вибрано"}
+                </span>
+              </div>
               <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="btn-secondary"
+                type="submit"
+                disabled={uploading || !selectedFile}
+                className="btn-primary"
               >
-                Обрати PDF
+                {uploading ? "Завантаження..." : "Завантажити PDF"}
               </button>
-              <span className="text-sm text-gray-600">
-                {selectedFile ? selectedFile.name : "Файл не вибрано"}
-              </span>
-            </div>
-            <button
-              type="submit"
-              disabled={uploading || !selectedFile}
-              className="btn-primary"
-            >
-              {uploading ? "Завантаження..." : "Завантажити PDF"}
-            </button>
-          </form>
-        </div>
+            </form>
+          </div>
+        )}
 
         <div className="card p-6 shadow-lg">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Завантажені матеріали</h2>
@@ -198,14 +230,25 @@ export default function SubjectMaterialsPage() {
                         {new Date(material.uploadedAt).toLocaleString("uk-UA")}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <a
-                          href={material.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Відкрити PDF
-                        </a>
+                        <div className="inline-flex items-center gap-4">
+                          <a
+                            href={material.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Відкрити PDF
+                          </a>
+                          {canManageMaterials && (
+                            <button
+                              onClick={() => handleDeleteMaterial(material)}
+                              disabled={deletingMaterialId === material.id}
+                              className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                            >
+                              {deletingMaterialId === material.id ? "Видалення..." : "Видалити"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -29,13 +29,15 @@ const uploadPdfMiddleware = (req: any, res: any, next: any) => {
 
 subjectRouter.get("/", authMiddleware, requireRole(["admin", "teacher", "student"]), subjectController.getSubjects);
 subjectRouter.post("/", authMiddleware, requireRole(["admin"]), subjectController.createSubject);
-subjectRouter.get("/:id/materials", authMiddleware, requireRole(["admin", "teacher"]), subjectController.getMaterials);
+subjectRouter.get("/:id/materials", authMiddleware, requireRole(["admin", "teacher", "student"]), subjectController.getMaterials);
 subjectRouter.post("/:id/materials", authMiddleware, requireRole(["admin", "teacher"]), uploadPdfMiddleware, subjectController.uploadMaterial);
+subjectRouter.delete("/:id/materials/:materialId", authMiddleware, requireRole(["admin", "teacher"]), subjectController.deleteMaterial);
 
 // Journal routes - must come before /:id routes
 subjectRouter.post("/journals/:journalId/lessons", authMiddleware, requireRole(["admin", "teacher"]), journalController.addLesson);
 subjectRouter.delete("/journals/:journalId/lessons/:lessonId", authMiddleware, requireRole(["admin", "teacher"]), journalController.deleteLesson);
 subjectRouter.patch("/journals/:journalId/lessons/:lessonId", authMiddleware, requireRole(["admin", "teacher"]), journalController.updateLessonMark);
+subjectRouter.patch("/journals/:journalId/lessons/:lessonId/topic", authMiddleware, requireRole(["admin", "teacher"]), journalController.updateLessonTopic);
 subjectRouter.post("/:id/journals", authMiddleware, requireRole(["admin"]), journalController.createJournal);
 subjectRouter.post("/:id/journals/:journalId/sync", authMiddleware, requireRole(["admin"]), journalController.syncJournalStudents);
 subjectRouter.delete("/:id/journals/:journalId", authMiddleware, requireRole(["admin", "teacher"]), journalController.deleteJournal);

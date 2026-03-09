@@ -8,6 +8,7 @@ import userRouter from "./user/user-router";
 import subjectRouter from "./subject/subject-router";
 import gradeRouter from "./grade/grade-router";
 import attendanceRouter from "./attendance/attendance-router";
+import generationRouter from "./generation/generation-router";
 import { GradeService } from "./grade/grade-service";
 
 const app: Express = express();
@@ -51,6 +52,7 @@ app.use("/api/users", userRouter);
 app.use("/api/subjects", subjectRouter);
 app.use("/api/grades", gradeRouter);
 app.use("/api/attendance", attendanceRouter);
+app.use("/api/generation", generationRouter);
 
 // Start server
 app.listen(PORT, () => {

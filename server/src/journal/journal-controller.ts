@@ -99,4 +99,23 @@ export default new class JournalController {
       return res.status(status).json({ success: false, error: error.message });
     }
   }
+
+  async updateLessonTopic(req: any, res: Response): Promise<Response<ApiResponse<ILessonResponse>>> {
+    try {
+      const { journalId, lessonId } = req.params;
+      const { topic } = req.body as { topic: string };
+      const userId = req.userId as string | undefined;
+
+      if (!topic?.trim()) {
+        return res.status(400).json({ success: false, error: "Lesson topic is required" });
+      }
+
+      const user = userId ? await userService.getUserById(userId) : null;
+      const lesson = await journalService.updateLessonTopic(journalId, lessonId, topic, user);
+      return res.json({ success: true, data: lesson });
+    } catch (error: any) {
+      const status = error?.message === "Forbidden" ? 403 : 404;
+      return res.status(status).json({ success: false, error: error.message });
+    }
+  }
 }();

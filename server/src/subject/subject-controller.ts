@@ -115,4 +115,20 @@ export default new class SubjectController {
     }
   }
 
+  async deleteMaterial(req: any, res: Response): Promise<Response<ApiResponse<{ id: string }>>> {
+    try {
+      const { id, materialId } = req.params;
+      const userId = req.userId as string | undefined;
+      const user = userId ? await userService.getUserById(userId) : null;
+
+      const deleted = await subjectService.deleteSubjectMaterial(id, materialId, user);
+      return res.json({ success: true, data: deleted });
+    } catch (error: any) {
+      let status = 400;
+      if (error?.message === "Forbidden") status = 403;
+      if (error?.message === "Subject not found" || error?.message === "Material not found") status = 404;
+      return res.status(status).json({ success: false, error: error.message });
+    }
+  }
+
 }();
