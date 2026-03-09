@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  min-height: 100vh;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ===== PURE UTILITY CLASSES ===== */
+@layer components {
+  /* Buttons - Blue accent */
+  .btn-primary {
+    padding: 12px 24px;
+    background-color: #2563eb;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid #2563eb;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    padding: 12px 24px;
+    background-color: white;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn-secondary:hover {
+    background-color: #f9fafb;
+    border-color: #9ca3af;
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Cards - Clean white with subtle border */
+  .card {
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+  }
+
+  /* Input fields - Consistent styling */
+  .input-field {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #111827;
+    transition: all 0.2s;
+  }
+
+  .input-field::placeholder {
+    color: #9ca3af;
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.015em;
+  }
+
+  .subsection-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  /* Card inner content - with enforced spacing */
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 28px;
+  }
+
+  @media (min-width: 768px) {
+    .card-content {
+      padding: 32px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .card-content {
+      padding: 36px;
+    }
+  }
+}
