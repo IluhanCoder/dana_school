@@ -27,6 +27,20 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keep calendar popup above tables and sticky headers */
+.localized-datepicker-wrapper {
+  position: relative;
+  z-index: 30;
+}
+
+.localized-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+.localized-datepicker-calendar {
+  z-index: 9999;
+}
+
 /* ===== PURE UTILITY CLASSES ===== */
 @layer components {
   /* Buttons - Blue accent */

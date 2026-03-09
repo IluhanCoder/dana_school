@@ -6,6 +6,7 @@ import type { Journal, Lesson, SubjectDetail } from "../types/subject.types";
 import type { Class } from "../types/class.types";
 import authService from "../auth/auth-service";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { LocalizedDatePicker } from "../components/LocalizedDatePicker";
 
 interface TeacherOption {
   _id: string;
@@ -48,6 +49,8 @@ export default function SubjectDetailPage() {
   const [editingLessonTopic, setEditingLessonTopic] = useState<{ journalId: string; lessonId: string } | null>(null);
   const [editingLessonTopicValue, setEditingLessonTopicValue] = useState("");
   const [savingLessonTopic, setSavingLessonTopic] = useState(false);
+  const [mobileLessonIndexByJournal, setMobileLessonIndexByJournal] = useState<Record<string, number>>({});
+  const [mobileDateToast, setMobileDateToast] = useState("");
   const role = authService.getRole();
   const isAdmin = authService.isAdmin();
   const canToggleArchivedStudents = role !== "student";
@@ -67,6 +70,12 @@ export default function SubjectDetailPage() {
   useEffect(() => {
     setSelectedTeacherId(detail?.subject?.teacher?.id || "");
   }, [detail?.subject?.teacher?.id]);
+
+  useEffect(() => {
+    if (!mobileDateToast) return;
+    const timeout = window.setTimeout(() => setMobileDateToast(""), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [mobileDateToast]);
 
   const availableClasses = useMemo(() => {
     const usedClassIds = new Set((detail?.journals || []).map((j: any) => j.class?.id || j.classId));
@@ -176,7 +185,7 @@ export default function SubjectDetailPage() {
   };
 
   const handleDeleteJournal = async (journalId: string, grade: number) => {
-    if (!id || (!isAdmin && !isTeacherOfSubject())) return;
+    if (!id || !isAdmin) return;
     setJournalForDelete({ id: journalId, grade });
     setDeleteModalOpen(true);
   };
@@ -241,6 +250,12 @@ export default function SubjectDetailPage() {
     return userId === detail.subject.teacher?.id;
   };
 
+  const getMobileLessonIndex = (journalId: string, lessonsCount: number) => {
+    if (lessonsCount <= 0) return 0;
+    const stored = mobileLessonIndexByJournal[journalId] ?? 0;
+    return Math.min(Math.max(stored, 0), lessonsCount - 1);
+  };
+
   const handleSubmitLesson = async (journal: Journal, e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin && !isTeacherOfSubject()) {
@@ -272,6 +287,12 @@ export default function SubjectDetailPage() {
         setError(resp.error);
         return;
       }
+
+      const nextSortedLessons = [...(journal.lessons || []), resp.data].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const createdLessonIndex = nextSortedLessons.findIndex((lesson) => lesson.id === resp.data.id);
+
       setDetail((prev) => {
         if (!prev) return prev;
         return {
@@ -281,6 +302,14 @@ export default function SubjectDetailPage() {
           ),
         };
       });
+
+      if (createdLessonIndex >= 0) {
+        setMobileLessonIndexByJournal((prev) => ({
+          ...prev,
+          [journal.id]: createdLessonIndex,
+        }));
+      }
+
       setCreatingLessonFor("");
     } catch (err: any) {
       setError(err?.response?.data?.error || err.message || "Не вдалося створити урок");
@@ -623,7 +652,7 @@ export default function SubjectDetailPage() {
                 return (
                   <div key={journal.id} className="card shadow-lg overflow-hidden">
                 {/* Journal Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-5 md:px-8 md:py-6 border-b border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">{journal.grade} клас</h3>
                     {journal.createdAt && (
@@ -636,11 +665,11 @@ export default function SubjectDetailPage() {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3">
                     {(isAdmin || isTeacherOfSubject()) && (
                       <button
                         onClick={() => handleOpenLesson(journal)}
-                        className="btn-secondary px-6"
+                        className="btn-secondary px-6 hidden md:inline-flex"
                       >
                         + Додати урок
                       </button>
@@ -657,60 +686,206 @@ export default function SubjectDetailPage() {
                         </button>
                       </>
                     )}
-                    {(isAdmin || isTeacherOfSubject()) && (
+                    {isAdmin && (
                       <button
                         onClick={() => handleDeleteJournal(journal.id, journal.grade)}
                         disabled={deletingJournal}
-                        className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-lg transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-colors disabled:opacity-50 text-sm font-semibold"
                         title="Видалити журнал"
                       >
-                        {deletingJournal ? "..." : "×"}
+                        {deletingJournal ? "..." : "🗑"}
+                        <span>Видалити журнал</span>
                       </button>
                     )}
                   </div>
                 </div>
 
+                {/* Mobile Single-Lesson View */}
+                {sortedLessons.length > 0 && (() => {
+                  const selectedLessonIndex = getMobileLessonIndex(journal.id, sortedLessons.length);
+                  const selectedLesson = sortedLessons[selectedLessonIndex];
+                  return (
+                    <div className="md:hidden px-4 py-4 border-b border-gray-200 bg-white space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Дата уроку</label>
+                        <LocalizedDatePicker
+                          value={selectedLesson.date ? new Date(selectedLesson.date).toISOString().slice(0, 10) : ""}
+                          min={sortedLessons[0]?.date ? new Date(sortedLessons[0].date).toISOString().slice(0, 10) : undefined}
+                          max={sortedLessons[sortedLessons.length - 1]?.date ? new Date(sortedLessons[sortedLessons.length - 1].date).toISOString().slice(0, 10) : undefined}
+                          onChange={(picked) => {
+                            if (!picked) return;
+                            const nextIndex = sortedLessons.findIndex(
+                              (lesson) => lesson.date && new Date(lesson.date).toISOString().slice(0, 10) === picked
+                            );
+                            if (nextIndex >= 0) {
+                              setMobileLessonIndexByJournal((prev) => ({
+                                ...prev,
+                                [journal.id]: nextIndex,
+                              }));
+                            } else {
+                              setMobileDateToast("У журналі немає уроку на вибрану дату");
+                            }
+                          }}
+                          className="input-field w-full"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMobileLessonIndexByJournal((prev) => ({
+                              ...prev,
+                              [journal.id]: Math.max(0, selectedLessonIndex - 1),
+                            }))
+                          }
+                          disabled={selectedLessonIndex <= 0}
+                          className="h-10 w-10 rounded-lg border border-gray-300 text-gray-700 disabled:opacity-40"
+                          aria-label="Попередня тема"
+                        >
+                          ←
+                        </button>
+                        <div className="flex-1">
+                          <select
+                            value={selectedLesson.id}
+                            onChange={(e) => {
+                              const nextIndex = sortedLessons.findIndex((lesson) => lesson.id === e.target.value);
+                              setMobileLessonIndexByJournal((prev) => ({
+                                ...prev,
+                                [journal.id]: nextIndex >= 0 ? nextIndex : 0,
+                              }));
+                            }}
+                            className="input-field w-full"
+                          >
+                            {sortedLessons.map((lesson, index) => (
+                              <option key={lesson.id} value={lesson.id}>
+                                {index + 1}. {lesson.topic} ({lesson.date ? new Date(lesson.date).toLocaleDateString("uk-UA") : "без дати"})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMobileLessonIndexByJournal((prev) => ({
+                              ...prev,
+                              [journal.id]: Math.min(sortedLessons.length - 1, selectedLessonIndex + 1),
+                            }))
+                          }
+                          disabled={selectedLessonIndex >= sortedLessons.length - 1}
+                          className="h-10 w-10 rounded-lg border border-gray-300 text-gray-700 disabled:opacity-40"
+                          aria-label="Наступна тема"
+                        >
+                          →
+                        </button>
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p className="text-sm font-semibold text-gray-900">{selectedLesson.topic}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {selectedLesson.date ? new Date(selectedLesson.date).toLocaleDateString("uk-UA") : ""}
+                        </p>
+                        {(isAdmin || isTeacherOfSubject()) && (
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleStartEditLessonTopic(journal.id, selectedLesson.id, selectedLesson.topic)}
+                              disabled={savingLessonTopic || deletingLesson}
+                              className="w-full min-h-10 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg text-gray-700 active:scale-[0.99] disabled:opacity-50"
+                            >
+                              Редагувати тему
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLesson(journal.id, selectedLesson.id, selectedLesson.topic)}
+                              disabled={deletingLesson || savingLessonTopic}
+                              className="w-full min-h-10 px-3 py-2 text-sm font-medium bg-red-50 border border-red-200 rounded-lg text-red-700 active:scale-[0.99] disabled:opacity-50"
+                            >
+                              Видалити урок
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {visibleEntries.length === 0 ? (
+                          <div className="px-3 py-6 text-center text-gray-500 text-sm">Немає учнів</div>
+                        ) : (
+                          visibleEntries.map((entry) => {
+                            const lessonMark = selectedLesson.marks.find((m) => m.student.id === entry.student.id);
+                            const markValue = lessonMark?.mark ?? null;
+                            const isAbsent = lessonMark?.isAbsent === true;
+                            const canEdit = (isAdmin || (isTeacherOfSubject() && !entry.student.isTransferred)) && !isAbsent;
+                            const isEditing =
+                              editingMark?.journalId === journal.id &&
+                              editingMark?.lessonId === selectedLesson.id &&
+                              editingMark?.studentId === entry.student.id;
+                            const displayValue = isAbsent ? "н" : (markValue ?? "—");
+
+                            return (
+                              <div key={entry.student.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{entry.student.name}</p>
+                                  {entry.student.isTransferred && <p className="text-xs text-blue-700">Переведено</p>}
+                                </div>
+                                {isEditing ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="12"
+                                      value={editingValue}
+                                      onChange={(e) => setEditingValue(e.target.value)}
+                                      className="w-14 px-2 py-1 border border-gray-900 rounded text-center text-sm"
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => handleSaveMark(journal.id, selectedLesson.id)}
+                                      disabled={savingMark}
+                                      className="px-2 py-1 text-xs bg-gray-900 text-white rounded disabled:opacity-50"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEdit}
+                                      disabled={savingMark}
+                                      className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded disabled:opacity-50"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => canEdit && handleEditMark(journal.id, selectedLesson.id, entry.student.id, markValue)}
+                                    className={`min-w-10 px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                                      canEdit ? "bg-gray-100 text-gray-900" : "bg-gray-50 text-gray-500"
+                                    } ${isAbsent ? "text-red-600" : ""}`}
+                                  >
+                                    {displayValue}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Lessons Table */}
                 {sortedLessons.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto hidden md:block">
+                    <div className="px-4 pt-3 text-xs text-gray-500 md:hidden">Проведіть вліво/вправо, щоб переглянути всі уроки.</div>
+                    <table className="min-w-[720px] w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-200 bg-gray-50">
-                          <th className="px-6 py-3 text-left font-medium text-gray-900 sticky left-0 bg-gray-50 min-w-[260px] w-[260px] z-20 border-r border-gray-200">
+                          <th className="px-4 py-3 md:px-6 text-left font-medium text-gray-900 md:sticky md:left-0 bg-gray-50 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-20 border-r border-gray-200">
                             Учень
                           </th>
                           {sortedLessons.map((lesson) => (
                             <th key={lesson.id} className="px-4 py-3 text-center font-medium text-gray-900 min-w-[120px]">
                               <div className="flex flex-col items-center">
-                                {editingLessonTopic?.journalId === journal.id && editingLessonTopic?.lessonId === lesson.id ? (
-                                  <div className="flex flex-col items-center gap-2 w-full max-w-[180px]">
-                                    <input
-                                      type="text"
-                                      value={editingLessonTopicValue}
-                                      onChange={(e) => setEditingLessonTopicValue(e.target.value)}
-                                      className="w-full px-2 py-1 border border-gray-300 rounded text-center text-sm"
-                                      autoFocus
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => handleSaveLessonTopic(journal.id, lesson.id)}
-                                        disabled={savingLessonTopic}
-                                        className="px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50"
-                                      >
-                                        ✓
-                                      </button>
-                                      <button
-                                        onClick={handleCancelEditLessonTopic}
-                                        disabled={savingLessonTopic}
-                                        className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="font-semibold">{lesson.topic}</span>
-                                )}
+                                <span className="font-semibold">{lesson.topic}</span>
                                 <span className="text-xs text-gray-500 font-normal mt-1">
                                   {lesson.date ? new Date(lesson.date).toLocaleDateString("uk-UA") : ""}
                                 </span>
@@ -756,7 +931,7 @@ export default function SubjectDetailPage() {
                             });
                             return (
                               <tr key={entry.student.id || idx} className={`border-b border-gray-200 ${rowBgClass}`}>
-                                <td className={`px-6 py-3 font-medium text-gray-900 sticky left-0 min-w-[260px] w-[260px] z-10 border-r border-gray-200 ${rowBgClass}`}>
+                                <td className={`px-4 py-3 md:px-6 font-medium text-gray-900 md:sticky md:left-0 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-10 border-r border-gray-200 ${rowBgClass}`}>
                                   {entry.student.name}
                                   {(entry.student.isArchived === true || entry.student.archivedAt) && (
                                     <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
@@ -832,6 +1007,17 @@ export default function SubjectDetailPage() {
                 ) : (
                   <div className="px-6 py-8 text-center text-gray-500 text-sm">Поки що немає уроків</div>
                 )}
+
+                {(isAdmin || isTeacherOfSubject()) && (
+                  <div className="md:hidden px-4 py-4 border-t border-gray-200 bg-white">
+                    <button
+                      onClick={() => handleOpenLesson(journal)}
+                      className="btn-secondary w-full justify-center"
+                    >
+                      + Додати урок
+                    </button>
+                  </div>
+                )}
               </div>
             );
             })}
@@ -878,12 +1064,20 @@ export default function SubjectDetailPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">Дата уроку</label>
-                  <input
-                    type="date"
+                  <LocalizedDatePicker
                     value={lessonDate}
-                    onChange={(e) => setLessonDate(e.target.value)}
+                    onChange={setLessonDate}
                     className="input-field"
                   />
+                  {lessonDate && (
+                    <p className="mt-2 text-sm text-gray-600">
+                      Обрана дата: {new Intl.DateTimeFormat("uk-UA", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      }).format(new Date(lessonDate))}
+                    </p>
+                  )}
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -905,6 +1099,66 @@ export default function SubjectDetailPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {(isAdmin || isTeacherOfSubject()) && editingLessonTopic && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <button
+              type="button"
+              aria-label="Закрити"
+              onClick={handleCancelEditLessonTopic}
+              className="absolute inset-0 bg-black/40"
+            />
+            <div className="relative w-full max-w-lg card p-6 shadow-2xl z-10">
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Редагувати урок</h3>
+                  <p className="text-gray-600 text-sm mt-1">Змініть назву теми уроку</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelEditLessonTopic}
+                  className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                  aria-label="Закрити форму"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Тема уроку</label>
+                  <input
+                    type="text"
+                    value={editingLessonTopicValue}
+                    onChange={(e) => setEditingLessonTopicValue(e.target.value)}
+                    className="input-field"
+                    placeholder="Введіть тему уроку..."
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCancelEditLessonTopic}
+                    className="btn-secondary"
+                    disabled={savingLessonTopic}
+                  >
+                    Скасувати
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveLessonTopic(editingLessonTopic.journalId, editingLessonTopic.lessonId)}
+                    disabled={savingLessonTopic}
+                    className="btn-primary"
+                  >
+                    {savingLessonTopic ? "Збереження..." : "Зберегти"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -939,6 +1193,23 @@ export default function SubjectDetailPage() {
             setLessonForDelete(null);
           }}
         />
+
+        {mobileDateToast && (
+          <div className="fixed top-4 right-4 z-50 max-w-md w-[calc(100%-2rem)] sm:w-auto">
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg shadow-lg px-4 py-3 flex items-start gap-3">
+              <span className="text-amber-600 text-lg leading-none">⚠</span>
+              <p className="text-sm leading-5">{mobileDateToast}</p>
+              <button
+                type="button"
+                onClick={() => setMobileDateToast("")}
+                className="ml-1 text-amber-700 hover:text-amber-900"
+                aria-label="Закрити повідомлення"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
