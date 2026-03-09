@@ -4,6 +4,14 @@ import { GradeModel } from "../grade/grade-model";
 import bcrypt from "bcryptjs";
 import journalModel from "../journal/journal-model";
 import mongoose from "mongoose";
+import subjectModel from "../subject/subject-model";
+
+interface IPerformancePoint {
+  subjectId: string;
+  subjectName: string;
+  date: string;
+  value: number;
+}
 
 export default new class UserService {
   async fetchUserData(includeArchived = false) {
@@ -172,5 +180,138 @@ export default new class UserService {
       id: gradeDoc._id?.toString() || "",
       grade: gradeDoc.grade,
     };
+  }
+
+  private async ensureCanViewStudentPerformance(
+    requester: IUserResponse,
+    student: IUserResponse
+  ): Promise<{ roleScope: "all" | "teacher-subjects"; teacherSubjectIds: string[] }> {
+    if (student.role !== "student") {
+      throw new Error("Student not found");
+    }
+
+    if (requester.role === "admin") {
+      return { roleScope: "all", teacherSubjectIds: [] };
+    }
+
+    if (requester.role === "student") {
+      if (requester.id !== student.id) {
+        throw new Error("Forbidden");
+      }
+      return { roleScope: "all", teacherSubjectIds: [] };
+    }
+
+    if (requester.role === "teacher") {
+      const teacherSubjects = await subjectModel
+        .find({ teacher: requester.id })
+        .select("_id")
+        .lean();
+      const teacherSubjectIds = teacherSubjects.map((subject: any) => subject._id.toString());
+
+      if (typeof student.grade === "number") {
+        const myClass = await this.getTeacherClass(requester.id);
+        if (myClass && myClass.grade === student.grade) {
+          return { roleScope: "all", teacherSubjectIds };
+        }
+      }
+
+      if (!teacherSubjectIds.length) {
+        throw new Error("Forbidden");
+      }
+
+      return { roleScope: "teacher-subjects", teacherSubjectIds };
+    }
+
+    throw new Error("Forbidden");
+  }
+
+  async getStudentPerformance(
+    requesterId: string,
+    studentId: string,
+    subjectId?: string
+  ): Promise<IPerformancePoint[]> {
+    const requester = await this.getUserById(requesterId);
+    if (!requester) {
+      throw new Error("Unauthorized");
+    }
+
+    const student = await this.getUserById(studentId);
+    if (!student) {
+      throw new Error("Student not found");
+    }
+
+    const accessScope = await this.ensureCanViewStudentPerformance(requester, student);
+
+    const studentObjectId = new mongoose.Types.ObjectId(studentId);
+    const journalFilter: any = { entries: { $elemMatch: { student: studentObjectId } } };
+    if (subjectId) {
+      journalFilter.subject = new mongoose.Types.ObjectId(subjectId);
+    }
+
+    if (accessScope.roleScope === "teacher-subjects") {
+      if (subjectId) {
+        if (!accessScope.teacherSubjectIds.includes(subjectId)) {
+          throw new Error("Forbidden");
+        }
+      } else {
+        const subjectObjectIds = accessScope.teacherSubjectIds.map(
+          (id) => new mongoose.Types.ObjectId(id)
+        );
+        journalFilter.subject = { $in: subjectObjectIds };
+      }
+    }
+
+    const journals = await journalModel
+      .find(journalFilter)
+      .lean();
+
+    if (accessScope.roleScope === "teacher-subjects" && !journals.length) {
+      throw new Error("Forbidden");
+    }
+
+    if (!journals.length) {
+      return [];
+    }
+
+    const subjectIds = Array.from(
+      new Set(journals.map((journal: any) => journal.subject?.toString()).filter(Boolean))
+    );
+
+    const subjects = await subjectModel
+      .find({ _id: { $in: subjectIds } })
+      .select("name")
+      .lean();
+
+    const subjectNameById = new Map<string, string>(
+      subjects.map((subject: any) => [subject._id.toString(), subject.name])
+    );
+
+    const points: IPerformancePoint[] = [];
+
+    journals.forEach((journal: any) => {
+      const subjectId = journal.subject?.toString() || "";
+      const subjectName = subjectNameById.get(subjectId) || "Невідомий предмет";
+
+      (journal.lessons || []).forEach((lesson: any) => {
+        const ownMark = (lesson.marks || []).find(
+          (mark: any) => mark.student?.toString() === studentId
+        );
+
+        if (!ownMark) return;
+        if (ownMark.isAbsent) return;
+        if (ownMark.mark === null || ownMark.mark === undefined) return;
+
+        points.push({
+          subjectId,
+          subjectName,
+          date: new Date(lesson.date || new Date()).toISOString(),
+          value: Number(ownMark.mark),
+        });
+      });
+    });
+
+    return points.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
   }
 };

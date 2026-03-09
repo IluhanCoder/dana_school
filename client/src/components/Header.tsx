@@ -110,6 +110,15 @@ export default function Header() {
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
                 </Link>
               )}
+              {(isTeacher || isAdmin) && (
+                <Link
+                  to="/performance-monitoring"
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors relative group"
+                >
+                  Моніторинг
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
+                </Link>
+              )}
               {myClass && (
                 <Link
                   to={`/my-class/${myClass.id}`}

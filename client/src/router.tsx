@@ -11,6 +11,7 @@ import ClassesPage from "./classes/classes-page";
 import MyClassPage from "./classes/my-class-page";
 import StudentAnalyticsPage from "./student/analytics-page";
 import StudentGenerationPage from "./student/generation-page";
+import PerformanceMonitoringPage from "./teacher/performance-monitoring-page";
 import authService from "./auth/auth-service";
 
 export default function Router() {
@@ -87,6 +88,14 @@ export default function Router() {
         element={
           <ProtectedRoute allowedRoles={["student"]} fallbackPath="/subjects">
             <StudentGenerationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/performance-monitoring"
+        element={
+          <ProtectedRoute allowedRoles={["teacher", "admin"]} fallbackPath="/subjects">
+            <PerformanceMonitoringPage />
           </ProtectedRoute>
         }
       />

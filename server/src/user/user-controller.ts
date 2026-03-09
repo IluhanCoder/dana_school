@@ -185,4 +185,33 @@ export default new class UserController {
       return res.status(500).json({ success: false, error: "Failed to fetch teacher class" });
     }
   }
+
+  async getStudentPerformance(req: Request<{ id: string }>, res: Response): Promise<Response<ApiResponse<any[]>>> {
+    try {
+      const requesterId = (req as any).userId as string | undefined;
+      if (!requesterId) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      const { id: studentId } = req.params;
+      const subjectId = typeof req.query.subjectId === "string" ? req.query.subjectId : undefined;
+      const points = await userService.getStudentPerformance(requesterId, studentId, subjectId);
+
+      return res.json({ success: true, data: points });
+    } catch (error: any) {
+      if (error?.message === "Unauthorized") {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      if (error?.message === "Forbidden") {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
+
+      if (error?.message === "Student not found") {
+        return res.status(404).json({ success: false, error: "Student not found" });
+      }
+
+      return res.status(500).json({ success: false, error: error?.message || "Failed to fetch student performance" });
+    }
+  }
 };

@@ -11,6 +11,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 userRouter.get("/", authMiddleware, userController.getUsers);
 userRouter.post("/import/excel", authMiddleware, requireRole(["admin"]), upload.single("file"), userController.importStudents);
 userRouter.get("/my-class", authMiddleware, requireRole(["teacher"]), userController.getMyClass);
+userRouter.get("/:id/performance", authMiddleware, requireRole(["student", "teacher", "admin"]), userController.getStudentPerformance);
 
 // Routes with :id parameter must come last
 userRouter.get("/:id", authMiddleware, userController.getUserById);
