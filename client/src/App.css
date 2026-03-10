@@ -6,3 +6,68 @@
   width: 100%;
 }
 
+.birthday-greeting-floating {
+  position: fixed;
+  right: 20px;
+  top: 84px;
+  width: min(420px, calc(100vw - 24px));
+  z-index: 1200;
+  border-radius: 16px;
+  border: 1px solid #fed7aa;
+  background: linear-gradient(135deg, #ffedd5 0%, #fef3c7 45%, #d1fae5 100%);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+  padding: 14px 44px 14px 16px;
+  animation: birthday-float-in 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.birthday-greeting-title {
+  color: #7c2d12;
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.birthday-greeting-text {
+  color: #92400e;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.birthday-greeting-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.72);
+  color: #92400e;
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.birthday-greeting-close:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes birthday-float-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .birthday-greeting-floating {
+    right: 12px;
+    left: 12px;
+    top: 76px;
+    width: auto;
+  }
+}
+
