@@ -19,6 +19,7 @@ export interface IAttendanceEntryResponse {
     id: string;
     name: string;
     email: string;
+    birthdate?: Date;
     isArchived?: boolean;
   };
   present: boolean;

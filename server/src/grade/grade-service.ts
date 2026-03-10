@@ -75,11 +75,11 @@ export class GradeService {
     // Verify teacher exists and is a teacher
     const teacher = await userModel.findById(teacherId);
     if (!teacher || teacher.role !== "teacher") {
-      throw new Error("Invalid teacher");
+      throw new Error("Невалідний вчитель");
     }
 
     if (teacher.isArchived) {
-      throw new Error("Cannot assign archived teacher");
+      throw new Error("Не можна призначити архівного вчителя");
     }
 
     const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
@@ -96,7 +96,7 @@ export class GradeService {
   static async removeFormTeacher(gradeNumber: number): Promise<void> {
     const grade = await GradeModel.findOne({ grade: gradeNumber });
     if (!grade) {
-      throw new Error("Grade not found");
+      throw new Error("Клас не знайдено");
     }
 
     grade.formTeacher = undefined;

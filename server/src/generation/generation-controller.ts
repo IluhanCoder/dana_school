@@ -14,15 +14,15 @@ export default new (class GenerationController {
     try {
       const userId = req.userId as string | undefined;
       if (!userId) {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+        return res.status(401).json({ success: false, error: "Неавторизовано" });
       }
 
       const missedLessons = (req.body?.missedLessons || []) as IMissedLessonInput[];
       const matches = await generationService.matchTopicsWithMaterials(userId, missedLessons);
       return res.json({ success: true, data: matches });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 400;
-      return res.status(status).json({ success: false, error: error.message || "Generation failed" });
+      const status = error?.message === "Заборонено" ? 403 : 400;
+      return res.status(status).json({ success: false, error: error.message || "Не вдалося виконати генерацію" });
     }
   }
 
@@ -30,15 +30,15 @@ export default new (class GenerationController {
     try {
       const userId = req.userId as string | undefined;
       if (!userId) {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+        return res.status(401).json({ success: false, error: "Неавторизовано" });
       }
 
       const items = (req.body?.items || []) as ITopicExplanationInput[];
       const explanations = await generationService.generateExplanations(userId, items);
       return res.json({ success: true, data: explanations });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 400;
-      return res.status(status).json({ success: false, error: error.message || "Explanation generation failed" });
+      const status = error?.message === "Заборонено" ? 403 : 400;
+      return res.status(status).json({ success: false, error: error.message || "Не вдалося згенерувати пояснення" });
     }
   }
 
@@ -46,7 +46,7 @@ export default new (class GenerationController {
     try {
       const userId = req.userId as string | undefined;
       if (!userId) {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+        return res.status(401).json({ success: false, error: "Неавторизовано" });
       }
 
       const payload = (req.body || {}) as IPodcastRequestInput;
@@ -61,8 +61,8 @@ export default new (class GenerationController {
       );
       return res.status(200).send(podcast.audioBuffer);
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 400;
-      return res.status(status).json({ success: false, error: error.message || "Podcast generation failed" });
+      const status = error?.message === "Заборонено" ? 403 : 400;
+      return res.status(status).json({ success: false, error: error.message || "Не вдалося згенерувати подкаст" });
     }
   }
 })();

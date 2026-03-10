@@ -20,6 +20,7 @@ export interface IJournalEntryResponse {
     id: string;
     name: string;
     email: string;
+    birthdate?: Date;
     grade?: number;
     isArchived?: boolean;
     archivedAt?: Date;

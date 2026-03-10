@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "./auth-service";
+import { LocalizedDatePicker } from "../components/LocalizedDatePicker";
 
 type AuthMode = "login" | "register";
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const minBirthdateStr = `${new Date().getFullYear() - 100}-01-01`;
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -17,6 +20,7 @@ export default function AuthPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    birthdate: "",
   });
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,7 +96,12 @@ export default function AuthPage() {
         return;
       }
 
-      await authService.register(registerData.name, registerData.email, registerData.password);
+      await authService.register(
+        registerData.name,
+        registerData.email,
+        registerData.password,
+        registerData.birthdate || undefined
+      );
       setSuccess("Аккаунт створено!");
       setTimeout(() => navigate("/"), 800);
     } catch (err: any) {
@@ -224,6 +233,17 @@ export default function AuthPage() {
                     placeholder="your@email.com"
                     className="input-field"
                     disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">Дата народження (необов'язково)</label>
+                  <LocalizedDatePicker
+                    value={registerData.birthdate}
+                    onChange={(value) => setRegisterData((prev) => ({ ...prev, birthdate: value }))}
+                    min={minBirthdateStr}
+                    max={todayStr}
+                    className="input-field"
                   />
                 </div>
 

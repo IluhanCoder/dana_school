@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "seed:admin": "ts-node scripts/create-admin.ts",
-    "seed:demo": "ts-node scripts/seed-demo-data.ts"
+    "seed:demo": "ts-node scripts/seed-demo-data.ts",
+    "seed:birthdates": "ts-node scripts/seed-user-birthdates.ts"
   },
   "keywords": [],
   "author": "",

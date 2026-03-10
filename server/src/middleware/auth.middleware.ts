@@ -11,7 +11,7 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ success: false, error: "Authorization header is missing" });
+      return res.status(401).json({ success: false, error: "Заголовок авторизації відсутній" });
     }
 
     const token = authHeader.substring(7); // Remove "Bearer " prefix

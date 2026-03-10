@@ -26,18 +26,18 @@ export default new class AttendanceController {
       const { date } = req.body as { date: string };
 
       if (!date) {
-        return res.status(400).json({ success: false, error: "Date is required" });
+        return res.status(400).json({ success: false, error: "Дата є обов'язковою" });
       }
 
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        return res.status(400).json({ success: false, error: "Invalid date" });
+        return res.status(400).json({ success: false, error: "Невалідна дата" });
       }
 
       const record = await attendanceService.addAttendanceRecord(classId, parsedDate);
       return res.status(201).json({ success: true, data: record });
     } catch (error: any) {
-      const status = error.message.includes("already exists") ? 400 : 500;
+      const status = error.message.includes("вже існує") ? 400 : 500;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -53,7 +53,7 @@ export default new class AttendanceController {
       if (typeof present !== "boolean") {
         return res
           .status(400)
-          .json({ success: false, error: "Present field must be a boolean" });
+          .json({ success: false, error: "Поле present має бути булевим" });
       }
 
       const record = await attendanceService.updateAttendance(

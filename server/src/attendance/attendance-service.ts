@@ -19,7 +19,7 @@ export default new class AttendanceService {
       .find({ class: classId })
       .populate({
         path: "entries.student",
-        select: "name email isArchived",
+        select: "name email isArchived birthdate dateOfBirth",
       })
       .sort({ date: -1 });
 
@@ -30,7 +30,7 @@ export default new class AttendanceService {
     // Get all students in grade
     const gradeDoc = await GradeModel.findById(classId);
     if (!gradeDoc) {
-      throw new Error("Grade not found");
+      throw new Error("Клас не знайдено");
     }
 
     // Check if record already exists for this date
@@ -39,7 +39,7 @@ export default new class AttendanceService {
       date,
     });
     if (existing) {
-      throw new Error("Attendance record already exists for this date");
+      throw new Error("Запис відвідування на цю дату вже існує");
     }
 
     // Get students for this grade
@@ -61,7 +61,7 @@ export default new class AttendanceService {
 
     const populated = await record.populate({
       path: "entries.student",
-      select: "name email isArchived",
+      select: "name email isArchived birthdate dateOfBirth",
     });
 
     return this.mapAttendance(populated);
@@ -74,14 +74,14 @@ export default new class AttendanceService {
   ): Promise<IAttendanceResponse> {
     const record = await (attendanceModel as any).findById(recordId);
     if (!record) {
-      throw new Error("Attendance record not found");
+      throw new Error("Запис відвідування не знайдено");
     }
 
     const entry = record.entries.find(
       (e: any) => e.student.toString() === studentId
     );
     if (!entry) {
-      throw new Error("Student not found in attendance record");
+      throw new Error("Учня не знайдено в записі відвідування");
     }
 
     entry.present = present;
@@ -89,7 +89,7 @@ export default new class AttendanceService {
 
     const populated = await record.populate({
       path: "entries.student",
-      select: "name email isArchived",
+      select: "name email isArchived birthdate dateOfBirth",
     });
 
     let warning: string | undefined;
@@ -127,7 +127,7 @@ export default new class AttendanceService {
   async deleteAttendanceRecord(recordId: string): Promise<void> {
     const record = await (attendanceModel as any).findById(recordId);
     if (!record) {
-      throw new Error("Attendance record not found");
+      throw new Error("Запис відвідування не знайдено");
     }
     await (attendanceModel as any).findByIdAndDelete(recordId);
   }
@@ -141,6 +141,7 @@ export default new class AttendanceService {
           id: e.student?._id?.toString() || "",
           name: e.student?.name,
           email: e.student?.email,
+          birthdate: e.student?.birthdate || e.student?.dateOfBirth,
           isArchived: e.student?.isArchived,
         },
         present: e.present,

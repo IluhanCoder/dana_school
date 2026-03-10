@@ -35,20 +35,20 @@ export default new class SubjectService {
 
   private ensureTeacherOrAdminAccess(subject: any, user?: { id: string; role?: string } | null) {
     if (!user || (user.role !== "admin" && user.role !== "teacher")) {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     if (user.role === "teacher") {
       const teacherId = (subject.teacher as any)?._id?.toString() || subject.teacher?.toString();
       if (!teacherId || teacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
   }
 
   private async ensureMaterialsReadAccess(subject: any, user?: { id: string; role?: string; grade?: number } | null) {
     if (!user) {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     if (user.role === "admin" || user.role === "teacher") {
@@ -57,7 +57,7 @@ export default new class SubjectService {
     }
 
     if (user.role !== "student") {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     // Students have read-only access to materials. Write operations remain
@@ -76,6 +76,7 @@ export default new class SubjectService {
             name: teacher.name,
             email: teacher.email,
             role: "teacher",
+            birthdate: teacher.birthdate || teacher.dateOfBirth,
           }
         : null,
       createdAt: subject.createdAt || new Date(),
@@ -84,7 +85,7 @@ export default new class SubjectService {
 
   async createSubject(name: string, teacherId?: string): Promise<ISubjectResponse> {
     if (!name) {
-      throw new Error("Name is required");
+      throw new Error("Ім'я є обов'язковим");
     }
 
     let normalizedTeacherId: string | null = null;
@@ -92,31 +93,31 @@ export default new class SubjectService {
     if (teacherId && teacherId.trim()) {
       const teacher = await userModel.findById(teacherId);
       if (!teacher) {
-        throw new Error("Teacher not found");
+        throw new Error("Вчителя не знайдено");
       }
       if (teacher.role !== "teacher") {
-        throw new Error("Selected user is not a teacher");
+        throw new Error("Обраний користувач не є вчителем");
       }
       normalizedTeacherId = teacher._id?.toString() || teacherId;
     }
 
     const existing = await subjectModel.findOne({ name, teacher: normalizedTeacherId });
     if (existing) {
-      throw new Error("Subject already exists for this teacher");
+      throw new Error("Предмет для цього вчителя вже існує");
     }
 
     const subject = await subjectModel.create({ name, teacher: normalizedTeacherId });
-    const populated = await subject.populate("teacher", "name email role");
+    const populated = await subject.populate("teacher", "name email role birthdate dateOfBirth");
     return this.mapSubject(populated);
   }
 
   async getSubjects(): Promise<ISubjectResponse[]> {
-    const subjects = await subjectModel.find().populate("teacher", "name email role");
+    const subjects = await subjectModel.find().populate("teacher", "name email role birthdate dateOfBirth");
     return subjects.map((s) => this.mapSubject(s));
   }
 
   async getSubjectsByTeacher(teacherId: string): Promise<ISubjectResponse[]> {
-    const subjects = await subjectModel.find({ teacher: teacherId }).populate("teacher", "name email role");
+    const subjects = await subjectModel.find({ teacher: teacherId }).populate("teacher", "name email role birthdate dateOfBirth");
     return subjects.map((s) => this.mapSubject(s));
   }
 
@@ -132,19 +133,19 @@ export default new class SubjectService {
 
     const subjects = await subjectModel
       .find({ _id: { $in: subjectIds } })
-      .populate("teacher", "name email role");
+      .populate("teacher", "name email role birthdate dateOfBirth");
 
     return subjects.map((s) => this.mapSubject(s));
   }
 
   async getSubjectWithJournals(subjectId: string, user?: { id: string; role?: string; grade?: number } | null, includeArchived = false): Promise<{ subject: ISubjectResponse; journals: IJournalResponse[] }> {
-    const subject = await subjectModel.findById(subjectId).populate("teacher", "name email role");
-    if (!subject) throw new Error("Subject not found");
+    const subject = await subjectModel.findById(subjectId).populate("teacher", "name email role birthdate dateOfBirth");
+    if (!subject) throw new Error("Предмет не знайдено");
 
     if (user?.role === "teacher") {
       const teacherId = (subject.teacher as any)?._id?.toString();
       if (!teacherId || teacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
@@ -152,7 +153,7 @@ export default new class SubjectService {
 
     if (user?.role === "student") {
       if (typeof user.grade !== "number") {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
 
       const studentJournals = journals
@@ -167,7 +168,7 @@ export default new class SubjectService {
         }));
 
       if (studentJournals.length === 0) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
 
       return { subject: this.mapSubject(subject), journals: studentJournals };
@@ -178,18 +179,18 @@ export default new class SubjectService {
 
   async updateSubjectTeacher(subjectId: string, teacherId?: string): Promise<ISubjectResponse> {
     const subject = await subjectModel.findById(subjectId);
-    if (!subject) throw new Error("Subject not found");
+    if (!subject) throw new Error("Предмет не знайдено");
 
     if (!teacherId || !teacherId.trim()) {
       subject.teacher = null as any;
     } else {
       const teacher = await userModel.findById(teacherId);
-      if (!teacher) throw new Error("Teacher not found");
+      if (!teacher) throw new Error("Вчителя не знайдено");
       if (teacher.role !== "teacher") {
-        throw new Error("Selected user is not a teacher");
+        throw new Error("Обраний користувач не є вчителем");
       }
       if ((teacher as any).isArchived) {
-        throw new Error("Cannot assign archived teacher");
+        throw new Error("Не можна призначити архівного вчителя");
       }
 
       subject.teacher = teacher._id as any;
@@ -204,7 +205,7 @@ export default new class SubjectService {
   async deleteSubject(subjectId: string): Promise<{ id: string }> {
     const subject = await subjectModel.findById(subjectId);
     if (!subject) {
-      throw new Error("Subject not found");
+      throw new Error("Предмет не знайдено");
     }
 
     await (journalModel as any).deleteMany({ subject: subjectId });
@@ -223,7 +224,7 @@ export default new class SubjectService {
       .populate("materials.uploadedBy", "name email");
 
     if (!subject) {
-      throw new Error("Subject not found");
+      throw new Error("Предмет не знайдено");
     }
 
     await this.ensureMaterialsReadAccess(subject, user);
@@ -305,17 +306,17 @@ export default new class SubjectService {
       .populate("materials.uploadedBy", "name email");
 
     if (!subject) {
-      throw new Error("Subject not found");
+      throw new Error("Предмет не знайдено");
     }
 
     this.ensureTeacherOrAdminAccess(subject, user);
 
     if (!file) {
-      throw new Error("PDF file is required");
+      throw new Error("Потрібен PDF-файл");
     }
 
     if (file.mimetype !== "application/pdf") {
-      throw new Error("Only PDF files are allowed");
+      throw new Error("Дозволені лише PDF-файли");
     }
 
     const uploadResult = await googleStorageService.uploadPdf({
@@ -361,7 +362,7 @@ export default new class SubjectService {
       .populate("materials.uploadedBy", "name email");
 
     if (!subject) {
-      throw new Error("Subject not found");
+      throw new Error("Предмет не знайдено");
     }
 
     this.ensureTeacherOrAdminAccess(subject, user);
@@ -376,12 +377,12 @@ export default new class SubjectService {
     if (normalizedMaterialId.startsWith("gcs:")) {
       storagePath = normalizedMaterialId.slice(4);
       if (!storagePath) {
-        throw new Error("Material not found");
+        throw new Error("Матеріал не знайдено");
       }
     } else {
       const material = materials.find((m: any) => m?._id?.toString() === normalizedMaterialId);
       if (!material) {
-        throw new Error("Material not found");
+        throw new Error("Матеріал не знайдено");
       }
 
       storagePath = material.storagePath;
@@ -391,7 +392,7 @@ export default new class SubjectService {
     }
 
     if (!storagePath.startsWith(`subjects/${subjectId}/`)) {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     await googleStorageService.deleteFile(storagePath);

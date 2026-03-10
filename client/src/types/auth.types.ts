@@ -7,6 +7,7 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  birthdate?: string;
 }
 
 export interface AuthResponse {

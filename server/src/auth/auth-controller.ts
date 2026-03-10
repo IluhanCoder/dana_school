@@ -6,14 +6,14 @@ import { IAuthResponse } from "../types/auth.types";
 export default new class AuthController {
   async register(req: Request, res: Response): Promise<Response<ApiResponse<{ message: string }>>> {
     try {
-      const { name, email, password, requestedRole } = req.body;
+      const { name, email, password, requestedRole, birthdate } = req.body;
 
       // Validate input
       if (!name || !email || !password) {
-        return res.status(400).json({ success: false, error: "Name, email, and password are required" });
+        return res.status(400).json({ success: false, error: "Ім'я, email та пароль є обов'язковими" });
       }
 
-      const result = await authService.registerRequest(name, email, password, requestedRole);
+      const result = await authService.registerRequest(name, email, password, requestedRole, birthdate);
 
       return res.status(201).json({ success: true, data: { message: result.message } });
     } catch (error: any) {
@@ -27,7 +27,7 @@ export default new class AuthController {
 
       // Validate input
       if (!email || !password) {
-        return res.status(400).json({ success: false, error: "Email and password are required" });
+        return res.status(400).json({ success: false, error: "Email та пароль є обов'язковими" });
       }
 
       const result = await authService.login(email, password);
@@ -57,7 +57,7 @@ export default new class AuthController {
       const refreshToken = req.cookies.refreshToken;
 
       if (!refreshToken) {
-        return res.status(401).json({ success: false, error: "Refresh token not found" });
+        return res.status(401).json({ success: false, error: "Refresh токен не знайдено" });
       }
 
       const result = await authService.refreshAccessToken(refreshToken);
@@ -122,7 +122,7 @@ export default new class AuthController {
       const { password } = req.body;
 
       if (!password || password.length < 6) {
-        return res.status(400).json({ success: false, error: "Password must be at least 6 characters" });
+        return res.status(400).json({ success: false, error: "Пароль має містити щонайменше 6 символів" });
       }
 
       const result = await authService.resetPassword(token, password);

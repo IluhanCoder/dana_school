@@ -42,6 +42,7 @@ export interface ISubjectResponse {
     name: string;
     email: string;
     role: "teacher";
+    birthdate?: Date;
   } | null;
   createdAt: Date;
 }

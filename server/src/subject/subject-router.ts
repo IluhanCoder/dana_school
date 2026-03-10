@@ -11,7 +11,7 @@ const upload = multer({
 	limits: { fileSize: 20 * 1024 * 1024 },
 	fileFilter: (_req, file, cb) => {
 		if (file.mimetype !== "application/pdf") {
-			return cb(new Error("Only PDF files are allowed"));
+			return cb(new Error("Дозволені лише PDF-файли"));
 		}
 		cb(null, true);
 	},
@@ -21,9 +21,9 @@ const uploadPdfMiddleware = (req: any, res: any, next: any) => {
 	upload.single("file")(req, res, (err: any) => {
 		if (!err) return next();
 		if (err instanceof multer.MulterError) {
-			return res.status(400).json({ success: false, error: err.message || "Upload error" });
+			return res.status(400).json({ success: false, error: err.message || "Помилка завантаження" });
 		}
-		return res.status(400).json({ success: false, error: err.message || "Invalid upload request" });
+		return res.status(400).json({ success: false, error: err.message || "Невалідний запит на завантаження" });
 	});
 };
 

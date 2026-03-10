@@ -16,7 +16,7 @@ router.get("/", authMiddleware, async (req: AuthenticatedRequest, res: Response)
   } catch (err: any) {
     res.status(500).json({
       success: false,
-      error: err.message || "Failed to fetch grades",
+      error: err.message || "Не вдалося отримати класи",
     });
   }
 });
@@ -30,7 +30,7 @@ router.get("/:grade", authMiddleware, async (req: AuthenticatedRequest, res: Res
     if (!gradeDetail) {
       return res.status(404).json({
         success: false,
-        error: "Grade not found",
+        error: "Клас не знайдено",
       });
     }
 
@@ -41,7 +41,7 @@ router.get("/:grade", authMiddleware, async (req: AuthenticatedRequest, res: Res
   } catch (err: any) {
     res.status(500).json({
       success: false,
-      error: err.message || "Failed to fetch grade",
+      error: err.message || "Не вдалося отримати клас",
     });
   }
 });
@@ -59,7 +59,7 @@ router.patch(
       if (!teacherId) {
         return res.status(400).json({
           success: false,
-          error: "Teacher ID is required",
+          error: "ID вчителя є обов'язковим",
         });
       }
 
@@ -70,10 +70,10 @@ router.patch(
         data: { message: "Form teacher assigned successfully" },
       });
     } catch (err: any) {
-      const status = err.message === "Invalid teacher" ? 400 : 500;
+      const status = err.message === "Невалідний вчитель" ? 400 : 500;
       res.status(status).json({
         success: false,
-        error: err.message || "Failed to set form teacher",
+        error: err.message || "Не вдалося призначити класного керівника",
       });
     }
   }
@@ -96,7 +96,7 @@ router.delete(
     } catch (err: any) {
       res.status(500).json({
         success: false,
-        error: err.message || "Failed to remove form teacher",
+        error: err.message || "Не вдалося зняти класного керівника",
       });
     }
   }

@@ -61,19 +61,20 @@ export default new class AuthService {
 
       throw new Error(response.data.error);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || "Login failed");
+      throw new Error(error.response?.data?.error || "Не вдалося увійти");
     }
   }
 
   async register(
     name: string,
     email: string,
-    password: string
+    password: string,
+    birthdate?: string
   ): Promise<AuthResponse> {
     try {
       const response = await $api.post<ApiResponse<AuthResponse>>(
         "/auth/register",
-        { name, email, password } as RegisterRequest
+        { name, email, password, birthdate } as RegisterRequest
       );
 
       if (response.data.success) {
@@ -83,7 +84,7 @@ export default new class AuthService {
 
       throw new Error(response.data.error);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || "Registration failed");
+      throw new Error(error.response?.data?.error || "Не вдалося зареєструватися");
     }
   }
 
@@ -93,7 +94,7 @@ export default new class AuthService {
       localStorage.removeItem("token");
       notifyAuthChanged();
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || "Logout failed");
+      throw new Error(error.response?.data?.error || "Не вдалося вийти");
     }
   }
 
@@ -114,7 +115,7 @@ export default new class AuthService {
     } catch (error: any) {
       localStorage.removeItem("token");
       notifyAuthChanged();
-      throw new Error(error.response?.data?.error || "Token refresh failed");
+      throw new Error(error.response?.data?.error || "Не вдалося оновити токен");
     }
   }
 

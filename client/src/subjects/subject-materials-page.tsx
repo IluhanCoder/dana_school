@@ -134,7 +134,7 @@ export default function SubjectMaterialsPage() {
   };
 
   if (!id) {
-    return <div className="p-6 text-red-600">Invalid subject ID</div>;
+    return <div className="p-6 text-red-600">Невалідний ID предмета</div>;
   }
 
   return (

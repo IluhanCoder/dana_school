@@ -7,6 +7,7 @@ const registrationRequestSchema = new mongoose.Schema<IRegistrationRequest>(
     email: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: true },
     requestedRole: { type: String, enum: ["student", "teacher", "admin"], default: "student", required: true },
+    birthdate: { type: Date, required: false },
   },
   { timestamps: true }
 );

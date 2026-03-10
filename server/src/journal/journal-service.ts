@@ -51,13 +51,13 @@ export default new class JournalService {
   ): Promise<void> {
     const journal = await journalModel.findById(journalId).populate({ path: "subject" });
     if (!journal) {
-      throw new Error("Journal not found");
+      throw new Error("Журнал не знайдено");
     }
 
     if (user?.role === "teacher") {
       const subjectTeacherId = (journal.subject as any)?.teacher?.toString();
       if (subjectTeacherId && subjectTeacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
@@ -67,12 +67,12 @@ export default new class JournalService {
   async syncJournalStudents(journalId: string): Promise<IJournalResponse> {
     const journal = await journalModel.findById(journalId);
     if (!journal) {
-      throw new Error("Journal not found");
+      throw new Error("Журнал не знайдено");
     }
 
     const grade = (journal as any).grade;
     if (grade === undefined || grade === null) {
-      throw new Error("Grade not found for journal");
+      throw new Error("Для журналу не знайдено клас");
     }
 
     const students = await userModel.find({ role: "student", grade: grade, isArchived: { $ne: true } }).select("_id");
@@ -86,22 +86,22 @@ export default new class JournalService {
       await journal.save();
     }
 
-    const populated: any = await journal.populate({ path: "entries.student lessons.marks.student", select: "name email grade isArchived archivedAt" });
+    const populated: any = await journal.populate({ path: "entries.student lessons.marks.student", select: "name email grade isArchived archivedAt birthdate dateOfBirth" });
     return await this.mapJournal(populated);
   }
 
   async createJournal(subjectId: string, classId: string): Promise<IJournalResponse> {
     const subject = await subjectModel.findById(subjectId);
-    if (!subject) throw new Error("Subject not found");
+    if (!subject) throw new Error("Предмет не знайдено");
 
     const classDoc = await GradeModel.findById(classId);
-    if (!classDoc) throw new Error("Grade not found");
+    if (!classDoc) throw new Error("Клас не знайдено");
 
     const subjectObjId = new mongoose.Types.ObjectId(subjectId);
     const grade = classDoc.grade;
     
     const exists = await journalModel.findOne({ subject: subjectObjId as any, grade } as any);
-    if (exists) throw new Error("Journal already exists for this grade and subject");
+    if (exists) throw new Error("Журнал для цього класу та предмета вже існує");
 
     console.log("[Journal] Creating journal for grade:", grade);
     const students = await userModel.find({ role: "student", grade: grade, isArchived: { $ne: true } }).select("name email grade");
@@ -113,7 +113,7 @@ export default new class JournalService {
       entries: students.map((s) => ({ student: s._id, mark: null })) as any,
     } as any);
 
-    const populated: any = await (journalDoc as any).populate({ path: "entries.student", select: "name email grade isArchived archivedAt" });
+    const populated: any = await (journalDoc as any).populate({ path: "entries.student", select: "name email grade isArchived archivedAt birthdate dateOfBirth" });
     return await this.mapJournal(populated);
   }
 
@@ -121,7 +121,7 @@ export default new class JournalService {
     const subjectObjId = new mongoose.Types.ObjectId(subjectId);
     const journals = await journalModel
       .find({ subject: subjectObjId as any })
-      .populate({ path: "entries.student lessons.marks.student", select: "name email grade isArchived archivedAt" })
+      .populate({ path: "entries.student lessons.marks.student", select: "name email grade isArchived archivedAt birthdate dateOfBirth" })
       .sort({ grade: 1 });
 
     console.log("[Journal] Loading journals for subject, found:", journals.length);
@@ -150,7 +150,7 @@ export default new class JournalService {
     userMaybe?: { id: string; role?: string } | null
   ): Promise<ILessonResponse> {
     if (!topic?.trim()) {
-      throw new Error("Lesson topic is required");
+      throw new Error("Тема уроку є обов'язковою");
     }
 
     let lessonDate: string | Date | undefined;
@@ -170,19 +170,19 @@ export default new class JournalService {
     }
 
     const journal = await journalModel.findById(journalId).populate({ path: "subject" });
-    if (!journal) throw new Error("Journal not found");
+    if (!journal) throw new Error("Журнал не знайдено");
 
     if (user?.role === "teacher") {
       const subjectTeacherId = (journal.subject as any)?.teacher?.toString();
       if (subjectTeacherId && subjectTeacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
     const normalizedLessonDate = typeof lessonDate === "string" && !lessonDate.trim() ? undefined : lessonDate;
     const parsedLessonDate = normalizedLessonDate ? new Date(normalizedLessonDate) : new Date();
     if (Number.isNaN(parsedLessonDate.getTime())) {
-      throw new Error("Invalid lesson date");
+      throw new Error("Невалідна дата уроку");
     }
 
     const lesson = {
@@ -207,12 +207,12 @@ export default new class JournalService {
     user?: { id: string; role?: string } | null
   ): Promise<void> {
     const journal = await journalModel.findById(journalId).populate({ path: "subject" });
-    if (!journal) throw new Error("Journal not found");
+    if (!journal) throw new Error("Журнал не знайдено");
 
     if (user?.role === "teacher") {
       const subjectTeacherId = (journal.subject as any)?.teacher?.toString();
       if (subjectTeacherId && subjectTeacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
@@ -222,7 +222,7 @@ export default new class JournalService {
     ) as any;
 
     if ((journal.lessons || []).length === beforeCount) {
-      throw new Error("Lesson not found");
+      throw new Error("Урок не знайдено");
     }
 
     await journal.save();
@@ -236,27 +236,27 @@ export default new class JournalService {
     user?: { id: string; role?: string } | null
   ): Promise<ILessonResponse> {
     const journal = await journalModel.findById(journalId).populate({ path: "subject" });
-    if (!journal) throw new Error("Journal not found");
+    if (!journal) throw new Error("Журнал не знайдено");
 
     if (user?.role === "teacher") {
       const subjectTeacherId = (journal.subject as any)?.teacher?.toString();
       if (subjectTeacherId && subjectTeacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
     const lessonIndex = (journal.lessons || []).findIndex((l: any) => l._id?.toString() === lessonId);
-    if (lessonIndex === -1) throw new Error("Lesson not found");
+    if (lessonIndex === -1) throw new Error("Урок не знайдено");
 
     const lesson = journal.lessons![lessonIndex];
     const markIndex = (lesson.marks || []).findIndex((m: any) => m.student.toString() === studentId);
-    if (markIndex === -1) throw new Error("Student mark entry not found in lesson");
+    if (markIndex === -1) throw new Error("Запис оцінки учня в уроці не знайдено");
 
     const journalGrade = Number((journal as any).grade);
     const lessonDate = new Date((lesson as any).date || new Date());
     const absentIds = await this.getAbsentStudentIds(journalGrade, lessonDate);
     if (absentIds.has(studentId)) {
-      throw new Error("Cannot set mark: student is absent on this date");
+      throw new Error("Неможливо виставити оцінку: учень відсутній на цю дату");
     }
 
     lesson.marks![markIndex].mark = mark;
@@ -271,27 +271,43 @@ export default new class JournalService {
   async updateLessonTopic(
     journalId: string,
     lessonId: string,
-    topic: string,
+    topic?: string,
+    date?: string | Date,
     user?: { id: string; role?: string } | null
   ): Promise<ILessonResponse> {
-    if (!topic?.trim()) {
-      throw new Error("Lesson topic is required");
+    if (topic === undefined && date === undefined) {
+      throw new Error("Передайте тему або дату уроку");
+    }
+
+    if (topic !== undefined && !topic.trim()) {
+      throw new Error("Тема уроку є обов'язковою");
     }
 
     const journal = await journalModel.findById(journalId).populate({ path: "subject" });
-    if (!journal) throw new Error("Journal not found");
+    if (!journal) throw new Error("Журнал не знайдено");
 
     if (user?.role === "teacher") {
       const subjectTeacherId = (journal.subject as any)?.teacher?.toString();
       if (subjectTeacherId && subjectTeacherId !== user.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
     const lessonIndex = (journal.lessons || []).findIndex((l: any) => l._id?.toString() === lessonId);
-    if (lessonIndex === -1) throw new Error("Lesson not found");
+    if (lessonIndex === -1) throw new Error("Урок не знайдено");
 
-    journal.lessons![lessonIndex].topic = topic.trim();
+    if (topic !== undefined) {
+      journal.lessons![lessonIndex].topic = topic.trim();
+    }
+
+    if (date !== undefined) {
+      const parsedLessonDate = new Date(date);
+      if (Number.isNaN(parsedLessonDate.getTime())) {
+        throw new Error("Невалідна дата уроку");
+      }
+      journal.lessons![lessonIndex].date = parsedLessonDate;
+    }
+
     await journal.save();
 
     const journalGrade = Number((journal as any).grade);
@@ -315,6 +331,7 @@ export default new class JournalService {
           id: e.student?._id?.toString() || "",
           name: e.student?.name,
           email: e.student?.email,
+          birthdate: e.student?.birthdate || e.student?.dateOfBirth,
           grade: e.student?.grade,
           isArchived: e.student?.isArchived,
           archivedAt: e.student?.archivedAt,
@@ -341,6 +358,7 @@ export default new class JournalService {
           id: m.student?._id?.toString() || "",
           name: m.student?.name,
           email: m.student?.email,
+          birthdate: m.student?.birthdate || m.student?.dateOfBirth,
           grade: m.student?.grade,
           isArchived: m.student?.isArchived,
           archivedAt: m.student?.archivedAt,

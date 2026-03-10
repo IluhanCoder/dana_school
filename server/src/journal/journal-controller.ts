@@ -11,7 +11,7 @@ export default new class JournalController {
       const { classId } = req.body as { classId: string };
 
       if (!classId) {
-        return res.status(400).json({ success: false, error: "Class ID is required" });
+        return res.status(400).json({ success: false, error: "ID класу є обов'язковим" });
       }
 
       const journal = await journalService.createJournal(id, classId);
@@ -29,7 +29,7 @@ export default new class JournalController {
       await journalService.deleteJournal(journalId, user);
       return res.json({ success: true, data: null });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 400;
+      const status = error?.message === "Заборонено" ? 403 : 400;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -51,14 +51,14 @@ export default new class JournalController {
       const userId = req.userId as string | undefined;
 
       if (!topic?.trim()) {
-        return res.status(400).json({ success: false, error: "Lesson topic is required" });
+        return res.status(400).json({ success: false, error: "Тема уроку є обов'язковою" });
       }
 
       const user = userId ? await userService.getUserById(userId) : null;
       const lesson = await journalService.addLesson(journalId, topic, marks || [], date, user);
       return res.status(201).json({ success: true, data: lesson });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 400;
+      const status = error?.message === "Заборонено" ? 403 : 400;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -72,7 +72,7 @@ export default new class JournalController {
       await journalService.deleteLesson(journalId, lessonId, user);
       return res.json({ success: true, data: null });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 404;
+      const status = error?.message === "Заборонено" ? 403 : 404;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -84,18 +84,18 @@ export default new class JournalController {
       const userId = req.userId as string | undefined;
 
       if (!studentId) {
-        return res.status(400).json({ success: false, error: "Student ID is required" });
+        return res.status(400).json({ success: false, error: "ID учня є обов'язковим" });
       }
 
       if (mark !== null && (typeof mark !== "number" || mark < 0 || mark > 12)) {
-        return res.status(400).json({ success: false, error: "Mark must be null or between 0 and 12" });
+        return res.status(400).json({ success: false, error: "Оцінка має бути null або в межах від 0 до 12" });
       }
 
       const user = userId ? await userService.getUserById(userId) : null;
       const lesson = await journalService.updateLessonMark(journalId, lessonId, studentId, mark, user);
       return res.json({ success: true, data: lesson });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 404;
+      const status = error?.message === "Заборонено" ? 403 : 404;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -103,18 +103,22 @@ export default new class JournalController {
   async updateLessonTopic(req: any, res: Response): Promise<Response<ApiResponse<ILessonResponse>>> {
     try {
       const { journalId, lessonId } = req.params;
-      const { topic } = req.body as { topic: string };
+      const { topic, date } = req.body as { topic?: string; date?: string };
       const userId = req.userId as string | undefined;
 
-      if (!topic?.trim()) {
-        return res.status(400).json({ success: false, error: "Lesson topic is required" });
+      if (topic === undefined && date === undefined) {
+        return res.status(400).json({ success: false, error: "Передайте тему або дату уроку" });
+      }
+
+      if (topic !== undefined && !topic.trim()) {
+        return res.status(400).json({ success: false, error: "Тема уроку є обов'язковою" });
       }
 
       const user = userId ? await userService.getUserById(userId) : null;
-      const lesson = await journalService.updateLessonTopic(journalId, lessonId, topic, user);
+      const lesson = await journalService.updateLessonTopic(journalId, lessonId, topic, date, user);
       return res.json({ success: true, data: lesson });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 404;
+      const status = error?.message === "Заборонено" ? 403 : 404;
       return res.status(status).json({ success: false, error: error.message });
     }
   }

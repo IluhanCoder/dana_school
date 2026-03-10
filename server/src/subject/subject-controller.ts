@@ -11,7 +11,7 @@ export default new class SubjectController {
       const { name, teacherId } = req.body as { name: string; teacherId?: string };
 
       if (!name) {
-        return res.status(400).json({ success: false, error: "Name is required" });
+        return res.status(400).json({ success: false, error: "Ім'я є обов'язковим" });
       }
 
       const subject = await subjectService.createSubject(name, teacherId);
@@ -54,7 +54,7 @@ export default new class SubjectController {
       const data = await subjectService.getSubjectWithJournals(id, user, includeArchived);
       return res.json({ success: true, data });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 404;
+      const status = error?.message === "Заборонено" ? 403 : 404;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -77,7 +77,7 @@ export default new class SubjectController {
       const deleted = await subjectService.deleteSubject(id);
       return res.json({ success: true, data: deleted });
     } catch (error: any) {
-      const status = /not found/i.test(error?.message) ? 404 : 400;
+      const status = /не знайдено/i.test(error?.message) ? 404 : 400;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -91,7 +91,7 @@ export default new class SubjectController {
       const materials = await subjectService.getSubjectMaterials(id, user);
       return res.json({ success: true, data: materials });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 404;
+      const status = error?.message === "Заборонено" ? 403 : 404;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -104,13 +104,13 @@ export default new class SubjectController {
       const user = userId ? await userService.getUserById(userId) : null;
 
       if (!file) {
-        return res.status(400).json({ success: false, error: "PDF file is required" });
+        return res.status(400).json({ success: false, error: "Потрібен PDF-файл" });
       }
 
       const material = await subjectService.uploadSubjectMaterial(id, file, user);
       return res.status(201).json({ success: true, data: material });
     } catch (error: any) {
-      const status = error?.message === "Forbidden" ? 403 : 400;
+      const status = error?.message === "Заборонено" ? 403 : 400;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -125,8 +125,8 @@ export default new class SubjectController {
       return res.json({ success: true, data: deleted });
     } catch (error: any) {
       let status = 400;
-      if (error?.message === "Forbidden") status = 403;
-      if (error?.message === "Subject not found" || error?.message === "Material not found") status = 404;
+      if (error?.message === "Заборонено") status = 403;
+      if (error?.message === "Предмет не знайдено" || error?.message === "Матеріал не знайдено") status = 404;
       return res.status(status).json({ success: false, error: error.message });
     }
   }

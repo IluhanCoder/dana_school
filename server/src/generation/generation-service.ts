@@ -398,18 +398,18 @@ export default new (class GenerationService {
           });
           res.on("end", () => {
             if (!res.statusCode || res.statusCode >= 300) {
-              return reject(new Error(`OpenAI API error: ${res.statusCode || 500} ${data}`));
+              return reject(new Error(`Помилка OpenAI API: ${res.statusCode || 500} ${data}`));
             }
 
             try {
               const parsed = JSON.parse(data);
               const content = parsed?.choices?.[0]?.message?.content;
               if (!content) {
-                return reject(new Error("OpenAI API returned empty response"));
+                return reject(new Error("OpenAI API повернув порожню відповідь"));
               }
               resolve(String(content));
             } catch (error: any) {
-              reject(new Error(`OpenAI response parse error: ${error.message}`));
+              reject(new Error(`Помилка обробки відповіді OpenAI: ${error.message}`));
             }
           });
         }
@@ -424,7 +424,7 @@ export default new (class GenerationService {
   private async callOpenAIForExplanation(item: ITopicExplanationInput): Promise<Pick<ITopicExplanationResult, "explanation" | "usedExternalKnowledge">> {
     const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY;
     if (!apiKey) {
-      throw new Error("OpenAI API key is not configured (OPENAI_API_KEY or OPEN_AI_API_KEY)");
+      throw new Error("Ключ OpenAI API не налаштовано (OPENAI_API_KEY або OPEN_AI_API_KEY)");
     }
 
     const model = process.env.OPENAI_MODEL || process.env.OPEN_AI_MODEL || "gpt-4o-mini";
@@ -508,7 +508,7 @@ export default new (class GenerationService {
   async generateExplanations(userId: string, items: ITopicExplanationInput[]): Promise<ITopicExplanationResult[]> {
     const user = await userService.getUserById(userId);
     if (!user || user.role !== "student") {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -527,7 +527,7 @@ export default new (class GenerationService {
         "entries.student": userId,
       });
       if (!hasAccess) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
     }
 
@@ -607,7 +607,7 @@ export default new (class GenerationService {
   ): Promise<{ audioBuffer: Buffer; fileName: string; mimeType: string }> {
     const user = await userService.getUserById(userId);
     if (!user || user.role !== "student") {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     const subjectId = (payload?.subjectId || "").trim();
@@ -615,7 +615,7 @@ export default new (class GenerationService {
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
     if (!subjectId) {
-      throw new Error("subjectId is required");
+      throw new Error("subjectId є обов'язковим");
     }
 
     const hasAccess = await (journalModel as any).exists({
@@ -624,7 +624,7 @@ export default new (class GenerationService {
       "entries.student": userId,
     });
     if (!hasAccess) {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     const normalizedItems = items
@@ -638,7 +638,7 @@ export default new (class GenerationService {
       .filter((item) => item.explanation.length > 0);
 
     if (!normalizedItems.length) {
-      throw new Error("No explanations available for podcast generation");
+      throw new Error("Немає пояснень для генерації подкасту");
     }
 
     const intro = `Вітаю! Це короткий навчальний подкаст з предмету ${subjectName}. Розберемо пропущені теми послідовно і простими словами.`;
@@ -654,7 +654,7 @@ export default new (class GenerationService {
 
     const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY;
     if (!apiKey) {
-      throw new Error("OpenAI API key is not configured (OPENAI_API_KEY or OPEN_AI_API_KEY)");
+      throw new Error("Ключ OpenAI API не налаштовано (OPENAI_API_KEY або OPEN_AI_API_KEY)");
     }
 
     const preferredModel = process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts";
@@ -701,7 +701,7 @@ export default new (class GenerationService {
               const full = Buffer.concat(chunks);
               if (!res.statusCode || res.statusCode >= 300) {
                 return reject(
-                  new Error(`OpenAI TTS error (${model}): ${res.statusCode || 500} ${full.toString("utf8")}`)
+                  new Error(`Помилка OpenAI TTS (${model}): ${res.statusCode || 500} ${full.toString("utf8")}`)
                 );
               }
               resolve(full);
@@ -738,7 +738,7 @@ export default new (class GenerationService {
   async matchTopicsWithMaterials(userId: string, missedLessons: IMissedLessonInput[]): Promise<ITopicMaterialMatch[]> {
     const user = await userService.getUserById(userId);
     if (!user || user.role !== "student") {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     if (!Array.isArray(missedLessons) || !missedLessons.length) {

@@ -7,6 +7,7 @@ import type { Class } from "../types/class.types";
 import authService from "../auth/auth-service";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { LocalizedDatePicker } from "../components/LocalizedDatePicker";
+import { isBirthdayToday } from "../utils/birthday";
 
 interface TeacherOption {
   _id: string;
@@ -48,6 +49,7 @@ export default function SubjectDetailPage() {
   const [deletingLesson, setDeletingLesson] = useState(false);
   const [editingLessonTopic, setEditingLessonTopic] = useState<{ journalId: string; lessonId: string } | null>(null);
   const [editingLessonTopicValue, setEditingLessonTopicValue] = useState("");
+  const [editingLessonDateValue, setEditingLessonDateValue] = useState("");
   const [savingLessonTopic, setSavingLessonTopic] = useState(false);
   const [mobileLessonIndexByJournal, setMobileLessonIndexByJournal] = useState<Record<string, number>>({});
   const [mobileDateToast, setMobileDateToast] = useState("");
@@ -105,7 +107,7 @@ export default function SubjectDetailPage() {
     try {
       setTeacherLoading(true);
       setTeacherError("");
-      const response = await $api.get<ApiResponse<TeacherOption[]>>("/users");
+      const response = await $api.get<ApiResponse<TeacherOption[]>>("/users?role=teacher&includeArchived=false");
       const resp = response.data;
       if (!resp.success) {
         setTeacherError(resp.error || "Не вдалося завантажити викладачів");
@@ -128,7 +130,7 @@ export default function SubjectDetailPage() {
         setClasses(response.data.data);
       }
     } catch (err: any) {
-      console.error("Failed to fetch grades:", err);
+      console.error("Не вдалося завантажити класи:", err);
     } finally {
       setClassesLoading(false);
     }
@@ -259,7 +261,7 @@ export default function SubjectDetailPage() {
   const handleSubmitLesson = async (journal: Journal, e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin && !isTeacherOfSubject()) {
-      setError("Forbidden");
+      setError("Заборонено");
       return;
     }
     if (!lessonTopic.trim()) {
@@ -420,15 +422,24 @@ export default function SubjectDetailPage() {
     }
   };
 
-  const handleStartEditLessonTopic = (journalId: string, lessonId: string, topic: string) => {
+  const formatDateForInput = (value?: string) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toISOString().slice(0, 10);
+  };
+
+  const handleStartEditLessonTopic = (journalId: string, lessonId: string, topic: string, date?: string) => {
     if (!isAdmin && !isTeacherOfSubject()) return;
     setEditingLessonTopic({ journalId, lessonId });
     setEditingLessonTopicValue(topic || "");
+    setEditingLessonDateValue(formatDateForInput(date));
   };
 
   const handleCancelEditLessonTopic = () => {
     setEditingLessonTopic(null);
     setEditingLessonTopicValue("");
+    setEditingLessonDateValue("");
   };
 
   const handleSaveLessonTopic = async (journalId: string, lessonId: string) => {
@@ -443,8 +454,12 @@ export default function SubjectDetailPage() {
     try {
       setSavingLessonTopic(true);
       setError("");
+      const payload: { topic: string; date?: string } = { topic: nextTopic };
+      if (editingLessonDateValue) {
+        payload.date = editingLessonDateValue;
+      }
       const response = await $api.patch<ApiResponse<Lesson>>(`/subjects/journals/${journalId}/lessons/${lessonId}/topic`, {
-        topic: nextTopic,
+        ...payload,
       });
       const resp = response.data;
       if (!resp.success) {
@@ -468,8 +483,9 @@ export default function SubjectDetailPage() {
 
       setEditingLessonTopic(null);
       setEditingLessonTopicValue("");
+      setEditingLessonDateValue("");
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || "Не вдалося оновити тему уроку");
+      setError(err?.response?.data?.error || err.message || "Не вдалося оновити урок");
     } finally {
       setSavingLessonTopic(false);
     }
@@ -537,7 +553,10 @@ export default function SubjectDetailPage() {
             <div className="flex-1">
               <h1 className="text-4xl font-bold text-gray-900 mb-3">{subject.name}</h1>
               <p className="text-lg text-gray-600 mb-2">
-                Викладач: <span className="font-semibold text-gray-900">{subject.teacher?.name || "Не призначено"}</span>
+                Викладач: <span className={`font-semibold ${subject.teacher && isBirthdayToday(subject.teacher.birthdate) ? "text-amber-700" : "text-gray-900"}`}>{subject.teacher?.name || "Не призначено"}</span>
+                {subject.teacher && isBirthdayToday(subject.teacher.birthdate) && (
+                  <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-200 text-amber-900">🎉</span>
+                )}
               </p>
               {subject.createdAt && (
                 <p className="text-sm text-gray-500">
@@ -788,11 +807,11 @@ export default function SubjectDetailPage() {
                         {(isAdmin || isTeacherOfSubject()) && (
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <button
-                              onClick={() => handleStartEditLessonTopic(journal.id, selectedLesson.id, selectedLesson.topic)}
+                              onClick={() => handleStartEditLessonTopic(journal.id, selectedLesson.id, selectedLesson.topic, selectedLesson.date)}
                               disabled={savingLessonTopic || deletingLesson}
                               className="w-full min-h-10 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg text-gray-700 active:scale-[0.99] disabled:opacity-50"
                             >
-                              Редагувати тему
+                              Редагувати урок
                             </button>
                             <button
                               onClick={() => handleDeleteLesson(journal.id, selectedLesson.id, selectedLesson.topic)}
@@ -821,9 +840,9 @@ export default function SubjectDetailPage() {
                             const displayValue = isAbsent ? "н" : (markValue ?? "—");
 
                             return (
-                              <div key={entry.student.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+                              <div key={entry.student.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 ${isBirthdayToday(entry.student.birthdate) ? "border-amber-300 bg-amber-50" : "border-gray-200 bg-white"}`}>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">{entry.student.name}</p>
+                                  <p className="text-sm font-medium text-gray-900 truncate">{entry.student.name}{isBirthdayToday(entry.student.birthdate) && <span className="ml-2 text-amber-700">🎉</span>}</p>
                                   {entry.student.isTransferred && <p className="text-xs text-blue-700">Переведено</p>}
                                 </div>
                                 {isEditing ? (
@@ -892,10 +911,10 @@ export default function SubjectDetailPage() {
                                 {(isAdmin || isTeacherOfSubject()) && (
                                   <div className="mt-2 flex items-center gap-1">
                                     <button
-                                      onClick={() => handleStartEditLessonTopic(journal.id, lesson.id, lesson.topic)}
+                                      onClick={() => handleStartEditLessonTopic(journal.id, lesson.id, lesson.topic, lesson.date)}
                                       disabled={savingLessonTopic || deletingLesson}
                                       className="w-6 h-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                                      title="Змінити тему уроку"
+                                      title="Змінити урок"
                                     >
                                       ✎
                                     </button>
@@ -923,6 +942,7 @@ export default function SubjectDetailPage() {
                           </tr>
                         ) : (
                           visibleEntries.map((entry, idx) => {
+                            const hasBirthdayToday = isBirthdayToday(entry.student.birthdate);
                             const rowBgClass = idx % 2 === 0 ? "bg-white" : "bg-gray-50";
                             const marks: Record<string, number | null> = {};
                             sortedLessons.forEach((lesson) => {
@@ -930,9 +950,12 @@ export default function SubjectDetailPage() {
                               marks[lesson.id] = mark;
                             });
                             return (
-                              <tr key={entry.student.id || idx} className={`border-b border-gray-200 ${rowBgClass}`}>
-                                <td className={`px-4 py-3 md:px-6 font-medium text-gray-900 md:sticky md:left-0 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-10 border-r border-gray-200 ${rowBgClass}`}>
+                              <tr key={entry.student.id || idx} className={`border-b border-gray-200 ${hasBirthdayToday ? "bg-amber-50" : rowBgClass}`}>
+                                <td className={`px-4 py-3 md:px-6 font-medium text-gray-900 md:sticky md:left-0 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-10 border-r border-gray-200 ${hasBirthdayToday ? "bg-amber-50" : rowBgClass}`}>
                                   {entry.student.name}
+                                  {hasBirthdayToday && (
+                                    <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-200 text-amber-900">🎉</span>
+                                  )}
                                   {(entry.student.isArchived === true || entry.student.archivedAt) && (
                                     <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
                                       Архів
@@ -1115,7 +1138,7 @@ export default function SubjectDetailPage() {
               <div className="flex items-start justify-between gap-4 mb-5">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Редагувати урок</h3>
-                  <p className="text-gray-600 text-sm mt-1">Змініть назву теми уроку</p>
+                  <p className="text-gray-600 text-sm mt-1">Змініть тему та дату уроку</p>
                 </div>
                 <button
                   type="button"
@@ -1137,6 +1160,17 @@ export default function SubjectDetailPage() {
                     className="input-field"
                     placeholder="Введіть тему уроку..."
                     autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Дата уроку</label>
+                  <LocalizedDatePicker
+                    value={editingLessonDateValue}
+                    onChange={setEditingLessonDateValue}
+                    className="input-field"
+                    placeholder="Оберіть дату"
+                    disabled={savingLessonTopic}
                   />
                 </div>
 

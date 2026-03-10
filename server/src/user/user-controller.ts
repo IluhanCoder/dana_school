@@ -8,10 +8,14 @@ export default new class UserController {
   async getUsers(req: Request, res: Response): Promise<Response<ApiResponse<any[]>>> {
     try {
       const includeArchived = req.query.includeArchived === "true";
-      const users = await userService.fetchUserData(includeArchived);
+      const roleQuery = typeof req.query.role === "string" ? req.query.role : undefined;
+      const role = roleQuery === "student" || roleQuery === "teacher" || roleQuery === "admin"
+        ? roleQuery
+        : undefined;
+      const users = await userService.fetchUserData(includeArchived, role);
       return res.json({ success: true, data: users });
     } catch (error) {
-      return res.status(500).json({ success: false, error: "Failed to fetch users" });
+      return res.status(500).json({ success: false, error: "Не вдалося отримати користувачів" });
     }
   }
 
@@ -21,24 +25,24 @@ export default new class UserController {
       const user = await userService.getUserById(id);
 
       if (!user) {
-        return res.status(404).json({ success: false, error: "User not found" });
+        return res.status(404).json({ success: false, error: "Користувача не знайдено" });
       }
 
       return res.json({ success: true, data: user });
     } catch (error) {
-      return res.status(500).json({ success: false, error: "Failed to fetch user" });
+      return res.status(500).json({ success: false, error: "Не вдалося отримати користувача" });
     }
   }
 
   async createUser(req: Request, res: Response): Promise<Response<ApiResponse<IUserResponse>>> {
     try {
-      const { name, email, password, role } = req.body as { name: string; email: string; password: string; role?: UserRole };
+      const { name, email, password, role, birthdate } = req.body as { name: string; email: string; password: string; role?: UserRole; birthdate?: string };
 
       if (!name || !email || !password) {
-        return res.status(400).json({ success: false, error: "Name, email, and password are required" });
+        return res.status(400).json({ success: false, error: "Ім'я, email та пароль є обов'язковими" });
       }
 
-      const newUser = await userService.createUser(name, email, password, role || "student");
+      const newUser = await userService.createUser(name, email, password, role || "student", { birthdate });
 
       return res.status(201).json({
         success: true,
@@ -47,6 +51,7 @@ export default new class UserController {
           name: newUser.name,
           email: newUser.email,
           role: newUser.role,
+          birthdate: (newUser as any).birthdate || (newUser as any).dateOfBirth,
           isArchived: (newUser as any).isArchived,
           archivedAt: (newUser as any).archivedAt,
           createdAt: newUser.createdAt || new Date(),
@@ -63,7 +68,7 @@ export default new class UserController {
       const { role } = req.body as { role: UserRole };
 
       if (!role) {
-        return res.status(400).json({ success: false, error: "Role is required" });
+        return res.status(400).json({ success: false, error: "Роль є обов'язковою" });
       }
 
       const updated = await userService.updateUserRole(id, role);
@@ -76,6 +81,7 @@ export default new class UserController {
           email: updated.email,
           role: updated.role,
           grade: (updated as any).grade,
+          birthdate: (updated as any).birthdate || (updated as any).dateOfBirth,
           isArchived: (updated as any).isArchived,
           archivedAt: (updated as any).archivedAt,
           createdAt: updated.createdAt || new Date(),
@@ -92,7 +98,7 @@ export default new class UserController {
       const { grade } = req.body as { grade: number };
 
       if (grade === undefined || grade === null) {
-        return res.status(400).json({ success: false, error: "Grade is required" });
+        return res.status(400).json({ success: false, error: "Клас є обов'язковим" });
       }
 
       const updated = await userService.updateStudentClass(id, Number(grade));
@@ -105,6 +111,7 @@ export default new class UserController {
           email: updated.email,
           role: updated.role,
           grade: (updated as any).grade,
+          birthdate: (updated as any).birthdate || (updated as any).dateOfBirth,
           isArchived: (updated as any).isArchived,
           archivedAt: (updated as any).archivedAt,
           createdAt: updated.createdAt || new Date(),
@@ -118,12 +125,12 @@ export default new class UserController {
   async importStudents(req: Request, res: Response): Promise<Response<ApiResponse<any>>> {
     try {
       if (!req.file) {
-        return res.status(400).json({ success: false, error: "No file uploaded" });
+        return res.status(400).json({ success: false, error: "Файл не завантажено" });
       }
 
       const grade = req.query.grade ? parseInt(req.query.grade as string, 10) : undefined;
       if (grade !== undefined && (!Number.isInteger(grade) || grade < 0 || grade > 8)) {
-        return res.status(400).json({ success: false, error: "Grade must be a number between 0 and 8" });
+        return res.status(400).json({ success: false, error: "Клас має бути числом від 0 до 8" });
       }
 
       const result = await importStudentsFromExcel(req.file.buffer, grade);
@@ -142,13 +149,40 @@ export default new class UserController {
     }
   }
 
+  async updateUserBirthdate(req: Request<{ id: string }>, res: Response): Promise<Response<ApiResponse<IUserResponse>>> {
+    try {
+      const { id } = req.params;
+      const { birthdate } = req.body as { birthdate?: string | null };
+
+      const updated = await userService.updateUserBirthdate(id, birthdate ?? undefined);
+
+      return res.json({
+        success: true,
+        data: {
+          id: updated._id?.toString() || "",
+          name: updated.name,
+          email: updated.email,
+          role: updated.role,
+          grade: (updated as any).grade,
+          birthdate: (updated as any).birthdate || (updated as any).dateOfBirth,
+          isArchived: (updated as any).isArchived,
+          archivedAt: (updated as any).archivedAt,
+          createdAt: updated.createdAt || new Date(),
+        },
+      });
+    } catch (error: any) {
+      const status = /не знайдено/i.test(error?.message) ? 404 : 400;
+      return res.status(status).json({ success: false, error: error.message });
+    }
+  }
+
   async deleteUser(req: Request<{ id: string }>, res: Response): Promise<Response<ApiResponse<{ id: string }>>> {
     try {
       const { id } = req.params;
       const deleted = await userService.deleteStudent(id);
       return res.json({ success: true, data: { id: deleted._id?.toString() || "" } });
     } catch (error: any) {
-      const status = /not found/i.test(error?.message) ? 404 : 400;
+      const status = /не знайдено/i.test(error?.message) ? 404 : 400;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -159,7 +193,7 @@ export default new class UserController {
       const restored = await userService.restoreUser(id);
       return res.json({ success: true, data: { id: restored._id?.toString() || "" } });
     } catch (error: any) {
-      const status = /not found/i.test(error?.message) ? 404 : 400;
+      const status = /не знайдено/i.test(error?.message) ? 404 : 400;
       return res.status(status).json({ success: false, error: error.message });
     }
   }
@@ -168,7 +202,7 @@ export default new class UserController {
     try {
       const userId = (req as any).userId;
       if (!userId) {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+        return res.status(401).json({ success: false, error: "Неавторизовано" });
       }
 
       const classInfo = await userService.getTeacherClass(userId);
@@ -182,7 +216,7 @@ export default new class UserController {
         data: classInfo,
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: "Failed to fetch teacher class" });
+      return res.status(500).json({ success: false, error: "Не вдалося отримати клас класного керівника" });
     }
   }
 
@@ -190,7 +224,7 @@ export default new class UserController {
     try {
       const requesterId = (req as any).userId as string | undefined;
       if (!requesterId) {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+        return res.status(401).json({ success: false, error: "Неавторизовано" });
       }
 
       const { id: studentId } = req.params;
@@ -199,19 +233,19 @@ export default new class UserController {
 
       return res.json({ success: true, data: points });
     } catch (error: any) {
-      if (error?.message === "Unauthorized") {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+      if (error?.message === "Неавторизовано") {
+        return res.status(401).json({ success: false, error: "Неавторизовано" });
       }
 
-      if (error?.message === "Forbidden") {
-        return res.status(403).json({ success: false, error: "Forbidden" });
+      if (error?.message === "Заборонено") {
+        return res.status(403).json({ success: false, error: "Заборонено" });
       }
 
-      if (error?.message === "Student not found") {
-        return res.status(404).json({ success: false, error: "Student not found" });
+      if (error?.message === "Учня не знайдено") {
+        return res.status(404).json({ success: false, error: "Учня не знайдено" });
       }
 
-      return res.status(500).json({ success: false, error: error?.message || "Failed to fetch student performance" });
+      return res.status(500).json({ success: false, error: error?.message || "Не вдалося отримати успішність учня" });
     }
   }
 };

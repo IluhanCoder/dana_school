@@ -14,10 +14,43 @@ interface IPerformancePoint {
 }
 
 export default new class UserService {
-  async fetchUserData(includeArchived = false) {
-    const filter = includeArchived ? {} : { isArchived: { $ne: true } };
-    const userData = await userModel.find(filter).select("-password");
-    return userData;
+  private normalizeBirthdate(value?: string | Date | null): Date | undefined {
+    if (!value) return undefined;
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error("Невалідний формат дати народження");
+    }
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (parsed > today) {
+      throw new Error("Дата народження не може бути в майбутньому");
+    }
+
+    const oldestAllowed = new Date();
+    oldestAllowed.setFullYear(oldestAllowed.getFullYear() - 100);
+    oldestAllowed.setHours(0, 0, 0, 0);
+    if (parsed < oldestAllowed) {
+      throw new Error("Дата народження не може бути старшою за 100 років");
+    }
+
+    return parsed;
+  }
+
+  private resolveBirthdate(user: any): Date | undefined {
+    return user.birthdate || user.dateOfBirth || undefined;
+  }
+
+  async fetchUserData(includeArchived = false, role?: UserRole) {
+    const filter: any = includeArchived ? {} : { isArchived: { $ne: true } };
+    if (role) {
+      filter.role = role;
+    }
+    const userData = await userModel.find(filter).select("-password").lean();
+    return userData.map((user: any) => ({
+      ...user,
+      birthdate: user.birthdate || user.dateOfBirth,
+    }));
   }
 
   async getUserById(userId: string): Promise<IUserResponse | null> {
@@ -30,6 +63,7 @@ export default new class UserService {
       email: user.email,
       role: user.role,
       grade: (user as any).grade,
+      birthdate: this.resolveBirthdate(user as any),
       isArchived: (user as any).isArchived,
       archivedAt: (user as any).archivedAt,
       createdAt: user.createdAt || new Date(),
@@ -40,11 +74,12 @@ export default new class UserService {
     name: string,
     email: string,
     password: string,
-    role: UserRole = "student"
+    role: UserRole = "student",
+    options?: { birthdate?: string | Date }
   ): Promise<IUser> {
     const existing = await userModel.findOne({ email });
     if (existing) {
-      throw new Error("User already exists with this email");
+      throw new Error("Користувач з таким email вже існує");
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -53,6 +88,7 @@ export default new class UserService {
       email,
       password: hashedPassword,
       role,
+      birthdate: this.normalizeBirthdate(options?.birthdate),
     });
 
     await newUser.save();
@@ -63,27 +99,38 @@ export default new class UserService {
     name: string,
     email: string,
     passwordHash: string,
-    role: UserRole = "student"
+    role: UserRole = "student",
+    options?: { birthdate?: string | Date }
   ): Promise<IUser> {
     const newUser = new userModel({
       name,
       email,
       password: passwordHash,
       role,
+      birthdate: this.normalizeBirthdate(options?.birthdate),
     });
     await newUser.save();
     return newUser;
   }
 
+  async updateUserBirthdate(userId: string, birthdate?: string | Date | null): Promise<IUser> {
+    const user = await userModel.findById(userId);
+    if (!user) throw new Error("Користувача не знайдено");
+
+    (user as any).birthdate = this.normalizeBirthdate(birthdate);
+    await user.save();
+    return user as IUser;
+  }
+
   async updateUserRole(userId: string, role: UserRole): Promise<IUser> {
     if (!role || (role !== "student" && role !== "teacher")) {
-      throw new Error("Role must be student or teacher");
+      throw new Error("Роль має бути student або teacher");
     }
 
     const user = await userModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw new Error("Користувача не знайдено");
     if (user.role === "admin") {
-      throw new Error("Cannot change role of admin user");
+      throw new Error("Не можна змінити роль адміністратора");
     }
 
     user.role = role;
@@ -97,13 +144,13 @@ export default new class UserService {
 
   async updateStudentClass(userId: string, grade: number): Promise<IUser> {
     if (!Number.isInteger(grade) || grade < 0 || grade > 8) {
-      throw new Error("Grade must be an integer between 0 and 8");
+      throw new Error("Клас має бути цілим числом від 0 до 8");
     }
 
     const user = await userModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw new Error("Користувача не знайдено");
     if (user.role !== "student") {
-      throw new Error("Only students can be assigned to a class");
+      throw new Error("До класу можна призначати лише учнів");
     }
 
     const oldGrade = (user as any).grade;
@@ -151,10 +198,10 @@ export default new class UserService {
 
   async deleteStudent(userId: string): Promise<IUser> {
     const user = await userModel.findById(userId);
-    if (!user) throw new Error("User not found");
-    if (user.role === "admin") throw new Error("Cannot delete admin user");
+    if (!user) throw new Error("Користувача не знайдено");
+    if (user.role === "admin") throw new Error("Не можна видалити адміністратора");
     // Allow deletion of students and teachers
-    if (user.role !== "student" && user.role !== "teacher") throw new Error("Can only delete students or teachers");
+    if (user.role !== "student" && user.role !== "teacher") throw new Error("Можна видаляти лише учнів або вчителів");
 
     (user as any).isArchived = true;
     (user as any).archivedAt = new Date();
@@ -164,7 +211,7 @@ export default new class UserService {
 
   async restoreUser(userId: string): Promise<IUser> {
     const user = await userModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw new Error("Користувача не знайдено");
 
     (user as any).isArchived = false;
     (user as any).archivedAt = undefined;
@@ -187,7 +234,7 @@ export default new class UserService {
     student: IUserResponse
   ): Promise<{ roleScope: "all" | "teacher-subjects"; teacherSubjectIds: string[] }> {
     if (student.role !== "student") {
-      throw new Error("Student not found");
+      throw new Error("Учня не знайдено");
     }
 
     if (requester.role === "admin") {
@@ -196,7 +243,7 @@ export default new class UserService {
 
     if (requester.role === "student") {
       if (requester.id !== student.id) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
       return { roleScope: "all", teacherSubjectIds: [] };
     }
@@ -216,13 +263,13 @@ export default new class UserService {
       }
 
       if (!teacherSubjectIds.length) {
-        throw new Error("Forbidden");
+        throw new Error("Заборонено");
       }
 
       return { roleScope: "teacher-subjects", teacherSubjectIds };
     }
 
-    throw new Error("Forbidden");
+    throw new Error("Заборонено");
   }
 
   async getStudentPerformance(
@@ -232,12 +279,12 @@ export default new class UserService {
   ): Promise<IPerformancePoint[]> {
     const requester = await this.getUserById(requesterId);
     if (!requester) {
-      throw new Error("Unauthorized");
+      throw new Error("Неавторизовано");
     }
 
     const student = await this.getUserById(studentId);
     if (!student) {
-      throw new Error("Student not found");
+      throw new Error("Учня не знайдено");
     }
 
     const accessScope = await this.ensureCanViewStudentPerformance(requester, student);
@@ -251,7 +298,7 @@ export default new class UserService {
     if (accessScope.roleScope === "teacher-subjects") {
       if (subjectId) {
         if (!accessScope.teacherSubjectIds.includes(subjectId)) {
-          throw new Error("Forbidden");
+          throw new Error("Заборонено");
         }
       } else {
         const subjectObjectIds = accessScope.teacherSubjectIds.map(
@@ -266,7 +313,7 @@ export default new class UserService {
       .lean();
 
     if (accessScope.roleScope === "teacher-subjects" && !journals.length) {
-      throw new Error("Forbidden");
+      throw new Error("Заборонено");
     }
 
     if (!journals.length) {

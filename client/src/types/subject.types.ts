@@ -3,6 +3,7 @@ export interface SubjectTeacher {
   name: string;
   email: string;
   role: "teacher";
+  birthdate?: string;
 }
 
 export interface Subject {
@@ -17,6 +18,7 @@ export interface JournalEntry {
     id: string;
     name: string;
     email: string;
+    birthdate?: string;
     grade?: number;
     isArchived?: boolean;
     archivedAt?: string;

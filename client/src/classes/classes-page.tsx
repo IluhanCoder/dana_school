@@ -50,7 +50,7 @@ export default function ClassesPage() {
         setError(response.data.error);
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || "Failed to load grades");
+      setError(err?.response?.data?.error || err.message || "Не вдалося завантажити класи");
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export default function ClassesPage() {
         setTeachers(response.data.data as Teacher[]);
       }
     } catch (err: any) {
-      console.error("Failed to fetch teachers:", err);
+      console.error("Не вдалося завантажити вчителів:", err);
     }
   };
 
@@ -71,7 +71,7 @@ export default function ClassesPage() {
     if (!isAdmin) return;
     const teacherId = selectedTeacher[grade];
     if (!teacherId) {
-      setError("Please select a teacher");
+      setError("Будь ласка, оберіть вчителя");
       return;
     }
 
@@ -81,7 +81,7 @@ export default function ClassesPage() {
       await $api.patch(`/grades/${grade}/form-teacher`, { teacherId });
       await fetchClasses();
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || "Failed to set form teacher");
+      setError(err?.response?.data?.error || err.message || "Не вдалося призначити класного керівника");
     } finally {
       setSavingClass(null);
     }
@@ -98,7 +98,7 @@ export default function ClassesPage() {
       setClassToRemove(null);
       await fetchClasses();
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || "Failed to remove form teacher");
+      setError(err?.response?.data?.error || err.message || "Не вдалося зняти класного керівника");
     } finally {
       setRemovingClass(false);
     }

@@ -20,7 +20,7 @@ const gradeSchema = new mongoose.Schema<IGrade>(
           const user = await mongoose.model("User").findById(teacherId);
           return user && user.role === "teacher";
         },
-        message: "Form teacher must be a valid teacher user",
+        message: "Класний керівник має бути дійсним користувачем з роллю вчителя",
       },
     },
   },

@@ -3,6 +3,7 @@ export interface AttendanceEntry {
     id: string;
     name: string;
     email: string;
+    birthdate?: string;
     isArchived?: boolean;
   };
   present: boolean;

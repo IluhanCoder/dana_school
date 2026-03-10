@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema<IUser>(
     role: { type: String, enum: ["student", "teacher", "admin"], default: "student", required: true },
     grade: { type: Number, min: 0, max: 8, required: false },
     accountNumber: { type: String, required: false },
+    birthdate: { type: Date, required: false },
     dateOfBirth: { type: Date, required: false },
     parentContact: { type: String, required: false },
     phone: { type: String, required: false },

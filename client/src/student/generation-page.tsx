@@ -338,7 +338,6 @@ export default function StudentGenerationPage() {
                     <thead>
                       <tr className="border-b border-gray-200 text-left text-gray-500 uppercase tracking-wide text-xs">
                         <th className="py-3 pr-4">Дата</th>
-                        <th className="py-3 pr-4">Предмет</th>
                         <th className="py-3 pr-4">Клас</th>
                         <th className="py-3">Тема</th>
                       </tr>
@@ -347,7 +346,6 @@ export default function StudentGenerationPage() {
                       {visibleLessons.map((lesson) => (
                         <tr key={lesson.key} className="border-b border-gray-100 last:border-b-0">
                           <td className="py-3 pr-4 text-gray-800 whitespace-nowrap">{formatFullDate(lesson.date)}</td>
-                          <td className="py-3 pr-4 text-gray-900 font-medium">{lesson.subjectName}</td>
                           <td className="py-3 pr-4 text-gray-700">{lesson.grade}</td>
                           <td className="py-3 text-gray-700">{lesson.topic || "-"}</td>
                         </tr>

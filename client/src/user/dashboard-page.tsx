@@ -5,6 +5,8 @@ import type { ApiResponse } from "../types/api.types";
 import authService from "../auth/auth-service";
 import StudentImportModal from "../components/StudentImportModal";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { LocalizedDatePicker } from "../components/LocalizedDatePicker";
+import { isBirthdayToday } from "../utils/birthday";
 
 interface User {
   _id: string;
@@ -12,6 +14,7 @@ interface User {
   email: string;
   role?: string;
   grade?: number;
+  birthdate?: string;
   isArchived?: boolean;
   archivedAt?: string;
   createdAt: string;
@@ -26,6 +29,8 @@ interface RegistrationRequest {
 }
 
 export default function DashboardPage() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const minBirthdateStr = `${new Date().getFullYear() - 100}-01-01`;
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,7 +53,7 @@ export default function DashboardPage() {
       const response = await $api.get<ApiResponse<User[]>>(url);
 
       if (response.data.success) {
-        setUsers(response.data.data);
+        setUsers((response.data.data || []).filter((user) => user.role !== "admin"));
       } else {
         setError(response.data.error);
       }
@@ -129,6 +134,23 @@ export default function DashboardPage() {
     if (!isAdmin) return;
     setUserToDelete(id);
     setDeleteModalOpen(true);
+  };
+
+  const toInputDate = (value?: string) => {
+    if (!value) return "";
+    const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
+    return new Date(value).toISOString().slice(0, 10);
+  };
+
+  const handleChangeBirthdate = async (id: string, birthdate: string) => {
+    if (!isAdmin) return;
+    try {
+      await $api.patch(`/users/${id}/birthdate`, { birthdate: birthdate || null });
+      await fetchUsers();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || "Не вдалося змінити дату народження");
+    }
   };
 
   const confirmDeleteUser = async () => {
@@ -223,37 +245,38 @@ export default function DashboardPage() {
               <p className="text-gray-600 text-lg">Немає зареєстрованих користувачів</p>
             </div>
           ) : (
-            <div className="card shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Ім'я</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Email</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Роль</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Клас</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Дата реєстрації</th>
-                      {isAdmin && (
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">Дії</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user, idx) => (
-                      <tr
-                        key={user._id}
-                        className={`border-b border-gray-200 hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${user.isArchived ? "opacity-60" : ""}`}
-                      >
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {user.name}
-                          {user.isArchived && (
-                            <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
-                              Архів
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600 font-mono text-sm">{user.email}</td>
-                        <td className="px-6 py-4">
+            <>
+              <div className="md:hidden space-y-3">
+                {users.map((user) => {
+                  const hasBirthdayToday = !user.isArchived && isBirthdayToday(user.birthdate);
+                  const gradeValue =
+                    typeof user.grade === "number" && user.grade >= 0 && user.grade <= 8
+                      ? String(user.grade)
+                      : "";
+
+                  return (
+                    <div
+                      key={user._id}
+                      className={`card p-4 shadow-sm ${hasBirthdayToday ? "bg-amber-50 border-amber-300" : ""} ${user.isArchived ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate inline-flex items-center gap-2">
+                            <span>{user.name}</span>
+                            {hasBirthdayToday && <span className="inline-flex px-1.5 py-0.5 text-xs rounded bg-amber-200 text-amber-900">🎉</span>}
+                          </p>
+                          <p className="text-xs text-gray-600 truncate mt-0.5">{user.email}</p>
+                        </div>
+                        {user.isArchived && (
+                          <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
+                            Архів
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Роль</p>
                           {user.role === "admin" ? (
                             <span className="inline-flex px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">
                               Адміністратор
@@ -272,24 +295,215 @@ export default function DashboardPage() {
                               {user.role === "teacher" ? "Викладач" : "Учень"}
                             </span>
                           )}
-                        </td>
-                        <td className="px-6 py-4">
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Клас</p>
                           {user.role === "student" ? (
                             isAdmin && !user.isArchived ? (
                               <select
-                                value={user.grade ?? 0}
-                                onChange={(e) => handleChangeClass(user._id, Number(e.target.value))}
+                                value={gradeValue}
+                                onChange={(e) => {
+                                  const nextGrade = Number(e.target.value);
+                                  if (Number.isNaN(nextGrade)) return;
+                                  handleChangeClass(user._id, nextGrade);
+                                }}
                                 className="input-field py-2 text-sm"
                               >
+                                <option value="" disabled>
+                                  Оберіть клас
+                                </option>
                                 {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((g) => (
-                                  <option key={g} value={g}>
+                                  <option key={g} value={String(g)}>
                                     {g} клас
                                   </option>
                                 ))}
                               </select>
                             ) : (
+                              <span className="text-sm text-gray-700">{user.grade !== undefined && user.grade !== null ? `${user.grade} клас` : "—"}</span>
+                            )
+                          ) : (
+                            <span className="text-sm text-gray-700">—</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Дата народження</p>
+                          {isAdmin && !user.isArchived ? (
+                            <LocalizedDatePicker
+                              value={toInputDate(user.birthdate)}
+                              onChange={(value) => handleChangeBirthdate(user._id, value)}
+                              min={minBirthdateStr}
+                              max={todayStr}
+                              className="input-field py-2 text-sm"
+                            />
+                          ) : user.birthdate ? (
+                            <span className="text-sm text-gray-700">
+                              {new Date(user.birthdate).toLocaleDateString("uk-UA", {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                              })}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-700">—</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500">
+                            Зареєстровано {new Date(user.createdAt).toLocaleDateString("uk-UA", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                            })}
+                          </p>
+                          {isAdmin && (
+                            <>
+                              {user.isArchived ? (
+                                <button
+                                  onClick={() => handleRestoreUser(user._id)}
+                                  className="px-2 py-1 text-xs font-medium text-green-700 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                                >
+                                  ⟲
+                                </button>
+                              ) : user.role === "student" || user.role === "teacher" ? (
+                                <button
+                                  onClick={() => handleDeleteUser(user._id)}
+                                  className="px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                >
+                                  ✕
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            <div className="hidden md:block card shadow-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1100px] w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Ім'я</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Email</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Роль</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Клас</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Дата народження</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Дата реєстрації</th>
+                      {isAdmin && (
+                        <th className="px-6 py-4 text-left font-semibold text-gray-900">Дії</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user, idx) => {
+                      const hasBirthdayToday = !user.isArchived && isBirthdayToday(user.birthdate);
+                      return (
+                      <tr
+                        key={user._id}
+                        className={`border-b border-gray-200 transition-colors ${
+                          hasBirthdayToday
+                            ? "bg-amber-50 hover:bg-amber-100"
+                            : `${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50`
+                        } ${user.isArchived ? "opacity-60" : ""}`}
+                      >
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <span>{user.name}</span>
+                            {hasBirthdayToday && (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-200 text-amber-900">
+                                🎉
+                              </span>
+                            )}
+                          </span>
+                          {user.isArchived && (
+                            <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
+                              Архів
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 font-mono text-sm">{user.email}</td>
+                        <td className="px-6 py-4">
+                          {user.role === "admin" ? (
+                            <span className="inline-flex px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">
+                              Адміністратор
+                            </span>
+                          ) : isAdmin && !user.isArchived ? (
+                            <select
+                              value={user.role || "student"}
+                              onChange={(e) => handleChangeRole(user._id, e.target.value)}
+                              className="input-field min-w-[130px] py-2 text-sm"
+                            >
+                              <option value="student">Учень</option>
+                              <option value="teacher">Викладач</option>
+                            </select>
+                          ) : (
+                            <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                              {user.role === "teacher" ? "Викладач" : "Учень"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {user.role === "student" ? (
+                            isAdmin && !user.isArchived ? (
+                              (() => {
+                                const gradeValue =
+                                  typeof user.grade === "number" && user.grade >= 0 && user.grade <= 8
+                                    ? String(user.grade)
+                                    : "";
+
+                                return (
+                              <select
+                                value={gradeValue}
+                                onChange={(e) => {
+                                  const nextGrade = Number(e.target.value);
+                                  if (Number.isNaN(nextGrade)) return;
+                                  handleChangeClass(user._id, nextGrade);
+                                }}
+                                className="input-field min-w-[130px] py-2 text-sm"
+                              >
+                                <option value="" disabled>
+                                  Оберіть клас
+                                </option>
+                                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((g) => (
+                                  <option key={g} value={String(g)}>
+                                    {g} клас
+                                  </option>
+                                ))}
+                              </select>
+                                );
+                              })()
+                            ) : (
                               <span className="text-gray-500">{user.grade !== undefined && user.grade !== null ? `${user.grade} клас` : "—"}</span>
                             )
+                          ) : (
+                            <span className="text-gray-500">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {isAdmin && !user.isArchived ? (
+                            <LocalizedDatePicker
+                              value={toInputDate(user.birthdate)}
+                              onChange={(value) => handleChangeBirthdate(user._id, value)}
+                              min={minBirthdateStr}
+                              max={todayStr}
+                              className="input-field py-2 text-sm"
+                            />
+                          ) : user.birthdate ? (
+                            <span className="text-gray-600">
+                              {new Date(user.birthdate).toLocaleDateString("uk-UA", {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                              })}
+                            </span>
                           ) : (
                             <span className="text-gray-500">—</span>
                           )}
@@ -323,11 +537,13 @@ export default function DashboardPage() {
                           </td>
                         )}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
+            </>
           )}
         </div>
 

@@ -50,10 +50,10 @@ export async function sendPasswordResetEmail(
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Password reset email sent to ${email}`);
+    console.log(`Лист для встановлення пароля надіслано на ${email}`);
   } catch (error) {
-    console.error(`Failed to send email to ${email}:`, error);
-    throw new Error(`Failed to send password reset email`);
+    console.error(`Не вдалося надіслати email на ${email}:`, error);
+    throw new Error(`Не вдалося надіслати лист для скидання пароля`);
   }
 }
 

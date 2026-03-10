@@ -5,6 +5,7 @@ import type { ApiResponse } from "../types/api.types";
 import type { AttendanceRecord } from "../types/attendance.types";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { LocalizedDatePicker } from "../components/LocalizedDatePicker";
+import { isBirthdayToday } from "../utils/birthday";
 
 export default function MyClassPage() {
   const { classId } = useParams<{ classId: string }>();
@@ -19,7 +20,7 @@ export default function MyClassPage() {
   const [mobileDateToast, setMobileDateToast] = useState("");
 
   if (!classId) {
-    return <div className="p-6 text-red-600">Invalid class ID</div>;
+    return <div className="p-6 text-red-600">Невалідний ID класу</div>;
   }
 
   useEffect(() => {
@@ -48,10 +49,10 @@ export default function MyClassPage() {
       if (response.data.success) {
         setAttendance(response.data.data || []);
       } else {
-        setError(response.data.error || "Failed to fetch attendance");
+        setError(response.data.error || "Не вдалося отримати відвідування");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to fetch attendance");
+      setError(err.response?.data?.error || "Не вдалося отримати відвідування");
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ export default function MyClassPage() {
 
   const handleAddDate = async () => {
     if (!newDate) {
-      setError("Please select a date");
+      setError("Будь ласка, оберіть дату");
       return;
     }
 
@@ -83,10 +84,10 @@ export default function MyClassPage() {
         }
         setNewDate("");
       } else {
-        setError(response.data.error || "Failed to add attendance date");
+        setError(response.data.error || "Не вдалося додати дату відвідування");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to add attendance date");
+      setError(err.response?.data?.error || "Не вдалося додати дату відвідування");
     } finally {
       setAddingDate(false);
     }
@@ -110,7 +111,7 @@ export default function MyClassPage() {
         );
       }
     } catch (err) {
-      setError("Failed to update attendance");
+      setError("Не вдалося оновити відвідування");
     }
   };
 
@@ -122,7 +123,7 @@ export default function MyClassPage() {
       setAttendance(attendance.filter((r) => r.id !== confirmDelete));
       setConfirmDelete(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete record");
+      setError(err.response?.data?.error || "Не вдалося видалити запис");
       setConfirmDelete(null);
     }
   };
@@ -144,7 +145,7 @@ export default function MyClassPage() {
   const students = useMemo(() => {
     const map = new Map<
       string,
-      { id: string; name: string; email: string; isArchived?: boolean }
+      { id: string; name: string; email: string; birthdate?: string; isArchived?: boolean }
     >();
 
     sortedRecords.forEach((record) => {
@@ -309,10 +310,11 @@ export default function MyClassPage() {
                           const hasEntry = typeof present === "boolean";
 
                           return (
-                            <div key={student.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+                            <div key={student.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 ${isBirthdayToday(student.birthdate) ? "border-amber-300 bg-amber-50" : "border-gray-200 bg-white"}`}>
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-gray-900 truncate">
                                   {student.name}
+                                  {isBirthdayToday(student.birthdate) && <span className="ml-2 text-amber-700">🎉</span>}
                                   {student.isArchived && <span className="ml-2 text-xs text-gray-500">(Архів)</span>}
                                 </p>
                                 <p className="text-xs text-gray-500 truncate">{student.email}</p>
@@ -376,18 +378,21 @@ export default function MyClassPage() {
                       </td>
                     </tr>
                   ) : (
-                    students.map((student, idx) => (
+                    students.map((student, idx) => {
+                      const hasBirthdayToday = isBirthdayToday(student.birthdate);
+                      return (
                       <tr
                         key={student.id}
                         className={`border-b border-gray-200 ${
-                          idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          hasBirthdayToday ? "bg-amber-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                         }`}
                       >
                         <td className={`px-4 py-3 md:px-6 md:sticky md:left-0 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-10 border-r border-gray-200 ${
-                          idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          hasBirthdayToday ? "bg-amber-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                         }`}>
                           <div className="font-medium text-gray-900">
                             {student.name}
+                            {hasBirthdayToday && <span className="ml-2 text-amber-700">🎉</span>}
                             {student.isArchived && (
                               <span className="ml-2 text-xs text-gray-500">(Архів)</span>
                             )}
@@ -421,7 +426,8 @@ export default function MyClassPage() {
                           );
                         })}
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

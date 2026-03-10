@@ -8,6 +8,8 @@ export interface IUser {
   role: UserRole;
   grade?: number;
   accountNumber?: string;
+  birthdate?: Date;
+  // Legacy field used in older imports
   dateOfBirth?: Date;
   parentContact?: string;
   phone?: string;
@@ -26,6 +28,8 @@ export interface IUserResponse {
   role: UserRole;
   grade?: number;
   accountNumber?: string;
+  birthdate?: Date;
+  // Legacy field used in older imports
   dateOfBirth?: Date;
   parentContact?: string;
   phone?: string;

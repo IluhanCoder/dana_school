@@ -39,7 +39,7 @@ class GoogleStorageService {
 
   private ensureConfigured() {
     if (!this.bucketName) {
-      throw new Error("GCS is not configured: GCS_BUCKET_NAME is required");
+      throw new Error("GCS не налаштовано: потрібна змінна GCS_BUCKET_NAME");
     }
   }
 

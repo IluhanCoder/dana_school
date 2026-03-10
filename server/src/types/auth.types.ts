@@ -28,6 +28,7 @@ export interface IRegistrationRequest {
   email: string;
   passwordHash: string;
   requestedRole: "student" | "teacher" | "admin";
+  birthdate?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
