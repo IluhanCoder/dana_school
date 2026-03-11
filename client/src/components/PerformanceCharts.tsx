@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PerformancePoint, SubjectOption } from "../types/analytics.types";
 
 interface DailyAveragePoint {
@@ -50,6 +50,14 @@ const DAY_MS = 1000 * 60 * 60 * 24;
 export default function PerformanceCharts({ marks, subjects, loading }: PerformanceChartsProps) {
   const [selectedSubjectId, setSelectedSubjectId] = useState("all");
   const [averageByMonth, setAverageByMonth] = useState(false);
+
+  useEffect(() => {
+    if (selectedSubjectId === "all") return;
+    const stillExists = subjects.some((subject) => subject.id === selectedSubjectId);
+    if (!stillExists) {
+      setSelectedSubjectId("all");
+    }
+  }, [selectedSubjectId, subjects]);
 
   const filteredMarks = useMemo(() => {
     if (selectedSubjectId === "all") return marks;

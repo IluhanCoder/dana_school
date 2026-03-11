@@ -124,7 +124,7 @@ describe("GradeService", () => {
     userModelMock.findById.mockResolvedValueOnce(student);
 
     const service = await loadService();
-    await expect(service.setFormTeacher(gradeNumber, userId)).rejects.toThrow("Invalid teacher");
+    await expect(service.setFormTeacher(gradeNumber, userId)).rejects.toThrow("Невалідний вчитель");
   });
 
   it("throws error if teacher is archived", async () => {
@@ -141,7 +141,7 @@ describe("GradeService", () => {
     userModelMock.findById.mockResolvedValueOnce(teacher);
 
     const service = await loadService();
-    await expect(service.setFormTeacher(gradeNumber, teacherId)).rejects.toThrow("Cannot assign archived teacher");
+    await expect(service.setFormTeacher(gradeNumber, teacherId)).rejects.toThrow("Не можна призначити архівного вчителя");
   });
 
   it("removes form teacher from grade", async () => {

@@ -66,7 +66,7 @@ describe("JournalService", () => {
     journalModelMock.findOne.mockResolvedValueOnce({ _id: "existing" });
 
     const service = await loadService();
-    await expect(service.createJournal(subjectId, classId)).rejects.toThrow("Journal already exists for this grade and subject");
+    await expect(service.createJournal(subjectId, classId)).rejects.toThrow("Журнал для цього класу та предмета вже існує");
   });
 
   it("returns journals with mapped entries", async () => {
@@ -164,7 +164,7 @@ describe("JournalService", () => {
     const otherTeacher = { id: "teach2", role: "teacher" };
 
     await expect(service.updateLessonMark(journalId, lessonId, studentId, 10, otherTeacher)).rejects.toThrow(
-      "Forbidden"
+      "Заборонено"
     );
   });
 
@@ -250,7 +250,7 @@ describe("JournalService", () => {
 
     await expect(
       service.addLesson(journalId, "Some Topic", [{ studentId: student1Id, mark: 5 }], otherTeacher)
-    ).rejects.toThrow("Forbidden");
+    ).rejects.toThrow("Заборонено");
   });
 
   it("throws error if lesson topic is empty", async () => {
@@ -260,7 +260,7 @@ describe("JournalService", () => {
     const service = await loadService();
 
     await expect(service.addLesson(journalId, "  ", [{ studentId: student1Id, mark: 5 }])).rejects.toThrow(
-      "Lesson topic is required"
+      "Тема уроку є обов'язковою"
     );
   });
 
@@ -385,7 +385,7 @@ describe("JournalService", () => {
     journalModelMock.findById.mockReturnValue({ populate: vi.fn().mockResolvedValue(null) });
 
     const service = await loadService();
-    await expect(service.deleteJournal(journalId, { id: "admin1", role: "admin" })).rejects.toThrow("Journal not found");
+    await expect(service.deleteJournal(journalId, { id: "admin1", role: "admin" })).rejects.toThrow("Журнал не знайдено");
   });
 
   it("throws Forbidden when non-owner teacher tries to delete journal", async () => {
@@ -400,6 +400,6 @@ describe("JournalService", () => {
     journalModelMock.findById.mockReturnValue({ populate: vi.fn().mockResolvedValue(journal) });
 
     const service = await loadService();
-    await expect(service.deleteJournal(journalId, { id: "teach2", role: "teacher" })).rejects.toThrow("Forbidden");
+    await expect(service.deleteJournal(journalId, { id: "teach2", role: "teacher" })).rejects.toThrow("Заборонено");
   });
 });

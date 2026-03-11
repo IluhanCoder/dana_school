@@ -388,17 +388,17 @@ export default function DashboardPage() {
 
             <div className="hidden md:block card shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-[1100px] w-full text-sm">
+                <table className="min-w-[1280px] w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Ім'я</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Email</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Роль</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Клас</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Дата народження</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">Дата реєстрації</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[220px] sticky left-0 z-20 bg-gray-50 border-r border-gray-200">Ім'я</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[250px]">Email</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[150px]">Роль</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[140px]">Клас</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[170px]">Дата народження</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[170px]">Дата реєстрації</th>
                       {isAdmin && (
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">Дії</th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-900 whitespace-nowrap min-w-[90px]">Дії</th>
                       )}
                     </tr>
                   </thead>
@@ -414,7 +414,11 @@ export default function DashboardPage() {
                             : `${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50`
                         } ${user.isArchived ? "opacity-60" : ""}`}
                       >
-                        <td className="px-6 py-4 font-medium text-gray-900">
+                        <td
+                          className={`px-6 py-4 font-medium text-gray-900 min-w-[220px] sticky left-0 z-10 border-r border-gray-200 ${
+                            hasBirthdayToday ? "bg-amber-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
+                        >
                           <span className="inline-flex items-center gap-2 whitespace-nowrap">
                             <span>{user.name}</span>
                             {hasBirthdayToday && (
@@ -429,8 +433,8 @@ export default function DashboardPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-gray-600 font-mono text-sm">{user.email}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-gray-600 font-mono text-sm whitespace-nowrap min-w-[250px]">{user.email}</td>
+                        <td className="px-6 py-4 min-w-[150px]">
                           {user.role === "admin" ? (
                             <span className="inline-flex px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">
                               Адміністратор
@@ -439,7 +443,7 @@ export default function DashboardPage() {
                             <select
                               value={user.role || "student"}
                               onChange={(e) => handleChangeRole(user._id, e.target.value)}
-                              className="input-field min-w-[130px] py-2 text-sm"
+                              className="input-field min-w-[140px] py-2 text-sm"
                             >
                               <option value="student">Учень</option>
                               <option value="teacher">Викладач</option>
@@ -450,7 +454,7 @@ export default function DashboardPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 min-w-[140px]">
                           {user.role === "student" ? (
                             isAdmin && !user.isArchived ? (
                               (() => {
@@ -467,7 +471,7 @@ export default function DashboardPage() {
                                   if (Number.isNaN(nextGrade)) return;
                                   handleChangeClass(user._id, nextGrade);
                                 }}
-                                className="input-field min-w-[130px] py-2 text-sm"
+                                className="input-field min-w-[140px] py-2 text-sm"
                               >
                                 <option value="" disabled>
                                   Оберіть клас
@@ -487,14 +491,14 @@ export default function DashboardPage() {
                             <span className="text-gray-500">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 min-w-[170px] whitespace-nowrap">
                           {isAdmin && !user.isArchived ? (
                             <LocalizedDatePicker
                               value={toInputDate(user.birthdate)}
                               onChange={(value) => handleChangeBirthdate(user._id, value)}
                               min={minBirthdateStr}
                               max={todayStr}
-                              className="input-field py-2 text-sm"
+                              className="input-field min-w-[150px] py-2 text-sm"
                             />
                           ) : user.birthdate ? (
                             <span className="text-gray-600">
@@ -508,7 +512,7 @@ export default function DashboardPage() {
                             <span className="text-gray-500">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="px-6 py-4 text-gray-600 whitespace-nowrap min-w-[170px]">
                           {new Date(user.createdAt).toLocaleDateString("uk-UA", {
                             year: "numeric",
                             month: "short",

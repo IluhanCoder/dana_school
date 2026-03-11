@@ -28,7 +28,7 @@ describe("Registration Flow (service)", () => {
     expect(usMock.getUserByEmail).toHaveBeenCalledWith("john@example.com");
     expect(rrMock.findOne).toHaveBeenCalledWith({ email: "john@example.com" });
     expect(rrMock.create).toHaveBeenCalled();
-    expect(res.message).toContain("pending admin approval");
+    expect(res.message).toContain("очікує схвалення адміністратора");
   });
 
   it("approveRegistrationRequest creates user, deletes request, and returns tokens", async () => {
@@ -42,7 +42,13 @@ describe("Registration Flow (service)", () => {
     const authService = mod.default;
 
     const result = await authService.approveRegistrationRequest("req1");
-    expect(usMock.createUserWithHash).toHaveBeenCalledWith("Jane", "jane@example.com", "hash", "teacher");
+    expect(usMock.createUserWithHash).toHaveBeenCalledWith(
+      "Jane",
+      "jane@example.com",
+      "hash",
+      "teacher",
+      { birthdate: undefined }
+    );
     expect(rrMock.findByIdAndDelete).toHaveBeenCalledWith("req1");
     expect(result.user.role).toBe("teacher");
     expect(result.accessToken).toBeTypeOf("string");

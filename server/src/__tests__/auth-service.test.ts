@@ -77,7 +77,7 @@ describe("AuthService JWT", () => {
   });
 
   it("refreshAccessToken throws for invalid refresh token", async () => {
-    await expect(authService.refreshAccessToken("invalid.refresh.token")).rejects.toThrow("Invalid refresh token");
+    await expect(authService.refreshAccessToken("invalid.refresh.token")).rejects.toThrow("Невалідний refresh токен");
   });
 });
 
@@ -107,7 +107,7 @@ describe("AuthService - Registration & Login", () => {
 
     const result = await authService.registerRequest("John Doe", "john@example.com", "password123", "student");
 
-    expect(result.message).toContain("pending admin approval");
+    expect(result.message).toContain("очікує схвалення адміністратора");
     expect(registrationRequestModelMock.create).toHaveBeenCalled();
   });
 
@@ -116,7 +116,7 @@ describe("AuthService - Registration & Login", () => {
     userServiceMock.getUserByEmail.mockResolvedValueOnce(existingUser);
 
     await expect(authService.registerRequest("John Doe", "john@example.com", "password123")).rejects.toThrow(
-      "User already exists with this email"
+      "Користувач з таким email вже існує"
     );
   });
 
@@ -128,7 +128,7 @@ describe("AuthService - Registration & Login", () => {
     });
 
     await expect(authService.registerRequest("John Doe", "john@example.com", "password123")).rejects.toThrow(
-      "Registration request already submitted for this email"
+      "Запит на реєстрацію для цього email вже подано"
     );
   });
 
@@ -157,7 +157,7 @@ describe("AuthService - Registration & Login", () => {
     userServiceMock.getUserByEmail.mockResolvedValueOnce(null);
 
     await expect(authService.login("nonexistent@example.com", "password123")).rejects.toThrow(
-      "Invalid email or password"
+      "Невірний email або пароль"
     );
   });
 
@@ -172,7 +172,7 @@ describe("AuthService - Registration & Login", () => {
 
     userServiceMock.getUserByEmail.mockResolvedValueOnce(user);
 
-    await expect(authService.login("archived@example.com", "password123")).rejects.toThrow("Account is archived");
+    await expect(authService.login("archived@example.com", "password123")).rejects.toThrow("Обліковий запис в архіві");
   });
 
   it("lists all registration requests", async () => {
@@ -222,7 +222,7 @@ describe("AuthService - Registration & Login", () => {
   it("throws error if registration request not found", async () => {
     registrationRequestModelMock.findById.mockResolvedValueOnce(null);
 
-    await expect(authService.approveRegistrationRequest("nonexistent")).rejects.toThrow("Registration request not found");
+    await expect(authService.approveRegistrationRequest("nonexistent")).rejects.toThrow("Запит на реєстрацію не знайдено");
   });
 
   it("deletes a registration request", async () => {
@@ -265,7 +265,7 @@ describe("AuthService - Registration & Login", () => {
     userModelMock.findOne.mockResolvedValueOnce(null);
 
     await expect(authService.resetPassword(resetToken, "newpass123")).rejects.toThrow(
-      "Invalid or expired password reset token"
+      "Невалідний або прострочений токен скидання пароля"
     );
   });
 });

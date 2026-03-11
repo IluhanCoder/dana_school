@@ -159,7 +159,7 @@ describe("AttendanceService", () => {
     gradeModelMock.findById.mockResolvedValue(null);
 
     const service = await loadService();
-    await expect(service.addAttendanceRecord(classId, new Date())).rejects.toThrow("Grade not found");
+    await expect(service.addAttendanceRecord(classId, new Date())).rejects.toThrow("Клас не знайдено");
   });
 
   it("throws error if attendance record already exists for date", async () => {
@@ -182,7 +182,7 @@ describe("AttendanceService", () => {
 
     const service = await loadService();
     await expect(service.addAttendanceRecord(classId, new Date("2024-01-16"))).rejects.toThrow(
-      "Attendance record already exists for this date"
+      "Запис відвідування на цю дату вже існує"
     );
   });
 
@@ -240,7 +240,7 @@ describe("AttendanceService", () => {
 
     const service = await loadService();
     await expect(service.updateAttendance(recordId, studentId, false)).rejects.toThrow(
-      "Attendance record not found"
+      "Запис відвідування не знайдено"
     );
   });
 
@@ -266,7 +266,7 @@ describe("AttendanceService", () => {
 
     const service = await loadService();
     await expect(service.updateAttendance(recordId, studentId, false)).rejects.toThrow(
-      "Student not found in attendance record"
+      "Учня не знайдено в записі відвідування"
     );
   });
 
@@ -295,6 +295,6 @@ describe("AttendanceService", () => {
     attendanceModelMock.findById.mockResolvedValue(null);
 
     const service = await loadService();
-    await expect(service.deleteAttendanceRecord(recordId)).rejects.toThrow("Attendance record not found");
+    await expect(service.deleteAttendanceRecord(recordId)).rejects.toThrow("Запис відвідування не знайдено");
   });
 });
