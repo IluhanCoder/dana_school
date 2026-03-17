@@ -894,15 +894,14 @@ export default function SubjectDetailPage() {
                 {/* Lessons Table */}
                 {sortedLessons.length > 0 ? (
                   <div className="overflow-x-auto hidden md:block">
-                    <div className="px-4 pt-3 text-xs text-gray-500 md:hidden">Проведіть вліво/вправо, щоб переглянути всі уроки.</div>
-                    <table className="min-w-[720px] w-full text-sm">
+                    <table className="min-w-[1200px] w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-200 bg-gray-50">
-                          <th className="px-4 py-3 md:px-6 text-left font-medium text-gray-900 md:sticky md:left-0 bg-gray-50 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-20 border-r border-gray-200">
+                          <th className="px-4 py-3 md:px-6 text-left font-medium text-gray-900 sticky left-0 bg-gray-50 min-w-[260px] w-[260px] z-20 border-r border-gray-200 whitespace-nowrap">
                             Учень
                           </th>
                           {sortedLessons.map((lesson) => (
-                            <th key={lesson.id} className="px-4 py-3 text-center font-medium text-gray-900 min-w-[120px]">
+                            <th key={lesson.id} className="px-4 py-3 text-center font-medium text-gray-900 min-w-[140px] whitespace-nowrap">
                               <div className="flex flex-col items-center">
                                 <span className="font-semibold">{lesson.topic}</span>
                                 <span className="text-xs text-gray-500 font-normal mt-1">
@@ -951,7 +950,7 @@ export default function SubjectDetailPage() {
                             });
                             return (
                               <tr key={entry.student.id || idx} className={`border-b border-gray-200 ${hasBirthdayToday ? "bg-amber-50" : rowBgClass}`}>
-                                <td className={`px-4 py-3 md:px-6 font-medium text-gray-900 md:sticky md:left-0 min-w-[220px] md:min-w-[260px] w-[220px] md:w-[260px] z-10 border-r border-gray-200 ${hasBirthdayToday ? "bg-amber-50" : rowBgClass}`}>
+                                <td className={`px-4 py-3 md:px-6 font-medium text-gray-900 sticky left-0 min-w-[260px] w-[260px] z-10 border-r border-gray-200 ${hasBirthdayToday ? "bg-amber-50" : rowBgClass}`}>
                                   {entry.student.name}
                                   {hasBirthdayToday && (
                                     <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-200 text-amber-900">🎉</span>

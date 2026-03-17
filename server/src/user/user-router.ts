@@ -18,6 +18,7 @@ userRouter.get("/:id", authMiddleware, userController.getUserById);
 userRouter.post("/", authMiddleware, requireRole(["admin"]), userController.createUser);
 userRouter.patch("/:id/role", authMiddleware, requireRole(["admin"]), userController.updateUserRole);
 userRouter.patch("/:id/class", authMiddleware, requireRole(["admin"]), userController.updateStudentClass);
+userRouter.patch("/:id/email", authMiddleware, requireRole(["admin"]), userController.updateUserEmail);
 userRouter.patch("/:id/birthdate", authMiddleware, requireRole(["admin"]), userController.updateUserBirthdate);
 userRouter.patch("/:id/restore", authMiddleware, requireRole(["admin"]), userController.restoreUser);
 userRouter.delete("/:id", authMiddleware, requireRole(["admin"]), userController.deleteUser);

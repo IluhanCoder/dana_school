@@ -11,7 +11,7 @@ import { isBirthdayToday } from "../utils/birthday";
 interface User {
   _id: string;
   name: string;
-  email: string;
+  email?: string | null;
   role?: string;
   grade?: number;
   birthdate?: string;
@@ -43,7 +43,11 @@ export default function DashboardPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [emailDrafts, setEmailDrafts] = useState<Record<string, string>>({});
+  const [updatingEmailId, setUpdatingEmailId] = useState<string>("");
   const isAdmin = authService.isAdmin();
+
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const fetchUsers = async (includeArchived = showArchived) => {
     try {
@@ -68,6 +72,14 @@ export default function DashboardPage() {
     fetchUsers();
     if (isAdmin) fetchRequests();
   }, [isAdmin, showArchived]);
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    users.forEach((user) => {
+      next[user._id] = user.email || "";
+    });
+    setEmailDrafts(next);
+  }, [users]);
 
   const fetchRequests = async () => {
     try {
@@ -127,6 +139,24 @@ export default function DashboardPage() {
       await fetchUsers();
     } catch (err: any) {
       setError(err?.response?.data?.error || err.message || "Не вдалося змінити клас");
+    }
+  };
+
+  const handleSaveEmail = async (id: string) => {
+    if (!isAdmin) return;
+    try {
+      setUpdatingEmailId(id);
+      const draft = (emailDrafts[id] || "").trim();
+      if (draft && !isValidEmail(draft)) {
+        setError("Невалідний формат email");
+        return;
+      }
+      await $api.patch(`/users/${id}/email`, { email: draft || null });
+      await fetchUsers();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || "Не вдалося змінити email");
+    } finally {
+      setUpdatingEmailId("");
     }
   };
 
@@ -265,7 +295,7 @@ export default function DashboardPage() {
                             <span>{user.name}</span>
                             {hasBirthdayToday && <span className="inline-flex px-1.5 py-0.5 text-xs rounded bg-amber-200 text-amber-900">🎉</span>}
                           </p>
-                          <p className="text-xs text-gray-600 truncate mt-0.5">{user.email}</p>
+                          <p className="text-xs text-gray-600 truncate mt-0.5">{user.email || "—"}</p>
                         </div>
                         {user.isArchived && (
                           <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">
@@ -324,6 +354,31 @@ export default function DashboardPage() {
                             )
                           ) : (
                             <span className="text-sm text-gray-700">—</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Email</p>
+                          {isAdmin && !user.isArchived ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="email"
+                                value={emailDrafts[user._id] ?? ""}
+                                onChange={(e) => setEmailDrafts((prev) => ({ ...prev, [user._id]: e.target.value }))}
+                                onBlur={() => handleSaveEmail(user._id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleSaveEmail(user._id);
+                                  }
+                                }}
+                                placeholder="Вкажіть email"
+                                className="input-field py-2 text-sm"
+                                disabled={updatingEmailId === user._id}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-700">{user.email || "—"}</span>
                           )}
                         </div>
 
@@ -433,7 +488,27 @@ export default function DashboardPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-gray-600 font-mono text-sm whitespace-nowrap min-w-[250px]">{user.email}</td>
+                        <td className="px-6 py-4 text-gray-600 font-mono text-sm whitespace-nowrap min-w-[250px]">
+                          {isAdmin && !user.isArchived ? (
+                            <input
+                              type="email"
+                              value={emailDrafts[user._id] ?? ""}
+                              onChange={(e) => setEmailDrafts((prev) => ({ ...prev, [user._id]: e.target.value }))}
+                              onBlur={() => handleSaveEmail(user._id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleSaveEmail(user._id);
+                                }
+                              }}
+                              placeholder="Вкажіть email"
+                              className="input-field py-2 text-sm"
+                              disabled={updatingEmailId === user._id}
+                            />
+                          ) : (
+                            <span>{user.email || "—"}</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 min-w-[150px]">
                           {user.role === "admin" ? (
                             <span className="inline-flex px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">

@@ -7,12 +7,34 @@ import googleStorageService from "../services/google-storage.service";
 import journalModel from "../journal/journal-model";
 
 export default new class SubjectService {
+  private decodeMojibakeFileName(value: string): string {
+    if (!value) return value;
+
+    // Typical mojibake from UTF-8 text interpreted as latin1: "Матем..." -> "ÐÐ°Ñ..."
+    const likelyMojibake = /Ð.|Ñ.|Ð|Ñ/;
+    if (!likelyMojibake.test(value)) {
+      return value;
+    }
+
+    try {
+      const decoded = Buffer.from(value, "latin1").toString("utf8");
+      return decoded || value;
+    } catch {
+      return value;
+    }
+  }
+
+  private normalizeUploadedFileName(originalName: string): string {
+    const normalized = this.decodeMojibakeFileName((originalName || "").trim());
+    return normalized || "material.pdf";
+  }
+
   private titleFromStoragePath(storagePath: string): string {
     const fileName = (storagePath || "").split("/").filter(Boolean).pop() || "PDF матеріал";
     try {
-      return decodeURIComponent(fileName);
+      return this.decodeMojibakeFileName(decodeURIComponent(fileName));
     } catch {
-      return fileName;
+      return this.decodeMojibakeFileName(fileName);
     }
   }
 
@@ -20,7 +42,7 @@ export default new class SubjectService {
     const uploadedBy = material?.uploadedBy || {};
     return {
       id: material?._id?.toString() || "",
-      title: material?.title,
+      title: this.decodeMojibakeFileName(material?.title || "PDF матеріал"),
       url: material?.url,
       size: material?.size,
       mimeType: material?.mimeType,
@@ -319,14 +341,16 @@ export default new class SubjectService {
       throw new Error("Дозволені лише PDF-файли");
     }
 
+    const normalizedOriginalName = this.normalizeUploadedFileName(file.originalname);
+
     const uploadResult = await googleStorageService.uploadPdf({
       buffer: file.buffer,
       subjectId,
-      originalName: file.originalname,
+      originalName: normalizedOriginalName,
     });
 
     const material = {
-      title: file.originalname,
+      title: normalizedOriginalName,
       url: uploadResult.url,
       storagePath: uploadResult.storagePath,
       size: file.size,

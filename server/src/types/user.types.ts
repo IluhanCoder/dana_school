@@ -3,7 +3,7 @@ export type UserRole = "student" | "teacher" | "admin";
 export interface IUser {
   _id?: string;
   name: string;
-  email: string;
+  email?: string | null;
   password: string;
   role: UserRole;
   grade?: number;
@@ -24,7 +24,7 @@ export interface IUser {
 export interface IUserResponse {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   role: UserRole;
   grade?: number;
   accountNumber?: string;

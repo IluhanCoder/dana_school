@@ -14,7 +14,7 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [loginData, setLoginData] = useState({ login: "", password: "" });
   const [registerData, setRegisterData] = useState({
     name: "",
     email: "",
@@ -40,21 +40,13 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      if (!loginData.email || !loginData.password) {
+      if (!loginData.login || !loginData.password) {
         setError("Заповніть усі поля");
         setLoading(false);
         return;
       }
 
-      const isAdminKeyword = loginData.email === "admin";
-      const looksLikeEmail = loginData.email.includes("@");
-      if (!isAdminKeyword && !looksLikeEmail) {
-        setError("Email повинен містити '@' або використовуйте 'admin'");
-        setLoading(false);
-        return;
-      }
-
-      await authService.login(loginData.email, loginData.password);
+      await authService.login(loginData.login, loginData.password);
       setSuccess("Вхід успішний!");
       setTimeout(() => {
         const role = authService.getRole();
@@ -173,13 +165,13 @@ export default function AuthPage() {
             {mode === "login" && (
               <form onSubmit={handleLoginSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Email</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">ПІБ або Email</label>
                   <input
                     type="text"
-                    name="email"
-                    value={loginData.email}
+                    name="login"
+                    value={loginData.login}
                     onChange={handleLoginChange}
-                    placeholder="your@email.com"
+                    placeholder="Введіть ПІБ або email"
                     className="input-field"
                     disabled={loading}
                   />
@@ -211,13 +203,13 @@ export default function AuthPage() {
             {mode === "register" && (
               <form onSubmit={handleRegisterSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Ім'я</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">ПІБ</label>
                   <input
                     type="text"
                     name="name"
                     value={registerData.name}
                     onChange={handleRegisterChange}
-                    placeholder="John Doe"
+                    placeholder="Шевченко Тарас Григорович"
                     className="input-field"
                     disabled={loading}
                   />

@@ -176,6 +176,33 @@ export default new class UserController {
     }
   }
 
+  async updateUserEmail(req: Request<{ id: string }>, res: Response): Promise<Response<ApiResponse<IUserResponse>>> {
+    try {
+      const { id } = req.params;
+      const { email } = req.body as { email?: string | null };
+
+      const updated = await userService.updateUserEmail(id, email ?? undefined);
+
+      return res.json({
+        success: true,
+        data: {
+          id: updated._id?.toString() || "",
+          name: updated.name,
+          email: (updated as any).email ?? null,
+          role: updated.role,
+          grade: (updated as any).grade,
+          birthdate: (updated as any).birthdate || (updated as any).dateOfBirth,
+          isArchived: (updated as any).isArchived,
+          archivedAt: (updated as any).archivedAt,
+          createdAt: updated.createdAt || new Date(),
+        },
+      });
+    } catch (error: any) {
+      const status = /не знайдено/i.test(error?.message) ? 404 : 400;
+      return res.status(status).json({ success: false, error: error.message });
+    }
+  }
+
   async deleteUser(req: Request<{ id: string }>, res: Response): Promise<Response<ApiResponse<{ id: string }>>> {
     try {
       const { id } = req.params;

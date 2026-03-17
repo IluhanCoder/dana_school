@@ -61,9 +61,9 @@ export default new class AuthService {
     return { message: "Запит на реєстрацію подано та очікує схвалення адміністратора" };
   }
 
-  async login(email: string, password: string): Promise<IAuthResponse> {
-    // Find user by email
-    const user = await userService.getUserByEmail(email);
+  async login(login: string, password: string): Promise<IAuthResponse> {
+    // Find user by email or full name
+    const user = await userService.getUserByLoginIdentifier(login);
     if (!user) {
       throw new Error("Невірний email або пароль");
     }
@@ -77,12 +77,14 @@ export default new class AuthService {
       throw new Error("Невірний email або пароль");
     }
 
+    const safeEmail = user.email || "";
+
     // Generate tokens
-    const accessToken = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_SECRET, {
+    const accessToken = jwt.sign({ id: user._id, email: safeEmail, role: user.role }, JWT_SECRET, {
       expiresIn: "15m",
     });
 
-    const refreshToken = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_REFRESH_SECRET, {
+    const refreshToken = jwt.sign({ id: user._id, email: safeEmail, role: user.role }, JWT_REFRESH_SECRET, {
       expiresIn: "7d",
     });
 
@@ -92,7 +94,7 @@ export default new class AuthService {
       user: {
         id: user._id?.toString() || "",
         name: user.name,
-        email: user.email,
+        email: safeEmail,
         role: user.role,
       },
     };
@@ -137,8 +139,9 @@ export default new class AuthService {
     );
     await registrationRequestModel.findByIdAndDelete(requestId);
 
-    const accessToken = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "15m" });
-    const refreshToken = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+    const safeEmail = user.email || "";
+    const accessToken = jwt.sign({ id: user._id, email: safeEmail, role: user.role }, JWT_SECRET, { expiresIn: "15m" });
+    const refreshToken = jwt.sign({ id: user._id, email: safeEmail, role: user.role }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 
     return {
       accessToken,
@@ -146,7 +149,7 @@ export default new class AuthService {
       user: {
         id: user._id?.toString() || "",
         name: user.name,
-        email: user.email,
+        email: safeEmail,
         role: user.role,
       },
     };

@@ -14,6 +14,15 @@ interface IPerformancePoint {
 }
 
 export default new class UserService {
+  private isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private normalizeEmail(value?: string | null): string | undefined {
+    const normalized = (value || "").trim().toLowerCase();
+    return normalized || undefined;
+  }
+
   private normalizeBirthdate(value?: string | Date | null): Date | undefined {
     if (!value) return undefined;
     const parsed = value instanceof Date ? value : new Date(value);
@@ -49,6 +58,7 @@ export default new class UserService {
     const userData = await userModel.find(filter).select("-password").lean();
     return userData.map((user: any) => ({
       ...user,
+      email: user.email ?? null,
       birthdate: user.birthdate || user.dateOfBirth,
     }));
   }
@@ -60,7 +70,7 @@ export default new class UserService {
     return {
       id: user._id?.toString() || "",
       name: user.name,
-      email: user.email,
+      email: (user as any).email ?? null,
       role: user.role,
       grade: (user as any).grade,
       birthdate: this.resolveBirthdate(user as any),
@@ -77,7 +87,15 @@ export default new class UserService {
     role: UserRole = "student",
     options?: { birthdate?: string | Date }
   ): Promise<IUser> {
-    const existing = await userModel.findOne({ email });
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      throw new Error("Email є обов'язковим");
+    }
+    if (!this.isValidEmail(normalizedEmail)) {
+      throw new Error("Невалідний формат email");
+    }
+
+    const existing = await userModel.findOne({ email: normalizedEmail });
     if (existing) {
       throw new Error("Користувач з таким email вже існує");
     }
@@ -85,7 +103,7 @@ export default new class UserService {
 
     const newUser = new userModel({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role,
       birthdate: this.normalizeBirthdate(options?.birthdate),
@@ -102,9 +120,10 @@ export default new class UserService {
     role: UserRole = "student",
     options?: { birthdate?: string | Date }
   ): Promise<IUser> {
+    const normalizedEmail = this.normalizeEmail(email);
     const newUser = new userModel({
       name,
-      email,
+      email: normalizedEmail,
       password: passwordHash,
       role,
       birthdate: this.normalizeBirthdate(options?.birthdate),
@@ -139,7 +158,57 @@ export default new class UserService {
   }
 
   async getUserByEmail(email: string): Promise<IUser | null> {
-    return await userModel.findOne({ email });
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) return null;
+    return await userModel.findOne({ email: normalizedEmail });
+  }
+
+  async updateUserEmail(userId: string, email?: string | null): Promise<IUser> {
+    const user = await userModel.findById(userId);
+    if (!user) throw new Error("Користувача не знайдено");
+
+    const normalizedEmail = this.normalizeEmail(email);
+
+    if (normalizedEmail) {
+      if (!this.isValidEmail(normalizedEmail)) {
+        throw new Error("Невалідний формат email");
+      }
+
+      const existing = await userModel.findOne({ email: normalizedEmail, _id: { $ne: userId } });
+      if (existing) {
+        throw new Error("Користувач з таким email вже існує");
+      }
+      (user as any).email = normalizedEmail;
+    } else {
+      (user as any).email = undefined;
+    }
+
+    await user.save();
+    return user as IUser;
+  }
+
+  async getUserByLoginIdentifier(identifier: string): Promise<IUser | null> {
+    const value = identifier.trim();
+    if (!value) return null;
+
+    // Always try exact email match first (supports short logins like "admin" stored in email).
+    const byEmail = await userModel.findOne({ email: value.toLowerCase() });
+    if (byEmail) {
+      return byEmail;
+    }
+
+    if (value.includes("@")) {
+      return null;
+    }
+
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const users = await userModel.find({ name: new RegExp(`^${escaped}$`, "i") }).limit(2);
+
+    if (users.length > 1) {
+      throw new Error("Знайдено декілька користувачів з таким ПІБ. Увійдіть через email");
+    }
+
+    return users[0] || null;
   }
 
   async updateStudentClass(userId: string, grade: number): Promise<IUser> {

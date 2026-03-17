@@ -3,6 +3,17 @@ import authService from "./auth-service";
 import { ApiResponse } from "../types/api.types";
 import { IAuthResponse } from "../types/auth.types";
 
+function getRefreshCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? "none" : "strict") as "none" | "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  };
+}
+
 export default new class AuthController {
   async register(req: Request, res: Response): Promise<Response<ApiResponse<{ message: string }>>> {
     try {
@@ -23,22 +34,18 @@ export default new class AuthController {
 
   async login(req: Request, res: Response): Promise<Response<ApiResponse<{ accessToken: string; user: any }>>> {
     try {
-      const { email, password } = req.body;
+      const { login, email, password } = req.body as { login?: string; email?: string; password?: string };
+      const loginIdentifier = (login || email || "").trim();
 
       // Validate input
-      if (!email || !password) {
-        return res.status(400).json({ success: false, error: "Email та пароль є обов'язковими" });
+      if (!loginIdentifier || !password) {
+        return res.status(400).json({ success: false, error: "ПІБ/email та пароль є обов'язковими" });
       }
 
-      const result = await authService.login(email, password);
+      const result = await authService.login(loginIdentifier, password);
 
       // Set refresh token in httpOnly cookie
-      res.cookie("refreshToken", result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
+      res.cookie("refreshToken", result.refreshToken, getRefreshCookieOptions());
 
       return res.json({
         success: true,
@@ -74,7 +81,7 @@ export default new class AuthController {
   }
 
   async logout(req: Request, res: Response): Promise<Response<ApiResponse<{ message: string }>>> {
-    res.clearCookie("refreshToken");
+    res.clearCookie("refreshToken", getRefreshCookieOptions());
     return res.json({ success: true, data: { message: "Logged out successfully" } });
   }
 
@@ -93,12 +100,7 @@ export default new class AuthController {
       const result = await authService.approveRegistrationRequest(id);
 
       // Set refresh token in httpOnly cookie
-      res.cookie("refreshToken", result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
+      res.cookie("refreshToken", result.refreshToken, getRefreshCookieOptions());
 
       return res.json({ success: true, data: { accessToken: result.accessToken, user: result.user } });
     } catch (error: any) {

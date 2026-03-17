@@ -43,13 +43,13 @@ function notifyAuthChanged() {
 
 export default new class AuthService {
   async login(
-    email: string,
+    login: string,
     password: string
   ): Promise<AuthResponse> {
     try {
       const response = await $api.post<ApiResponse<AuthResponse>>(
         "/auth/login",
-        { email, password } as LoginRequest
+        { login, password } as LoginRequest
       );
 
       if (response.data.success) {

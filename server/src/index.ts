@@ -16,11 +16,22 @@ const PORT = process.env.PORT || 5001;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/school_app";
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const EXTRA_ORIGIN = "http://localhost:5174";
+const ADDITIONAL_CLIENT_URLS = (process.env.CLIENT_URLS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const ALLOWED_ORIGINS = new Set([CLIENT_URL, EXTRA_ORIGIN, ...ADDITIONAL_CLIENT_URLS]);
 
 // Middleware
 app.use(
   cors({
-    origin: [CLIENT_URL, EXTRA_ORIGIN],
+    origin: (origin, callback) => {
+      // Allow same-origin and non-browser clients (curl/postman) with no Origin header.
+      if (!origin || ALLOWED_ORIGINS.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS: origin is not allowed"));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'authorization'],
