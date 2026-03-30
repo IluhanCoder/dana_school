@@ -293,15 +293,6 @@ export default function AuthPage() {
             </p>
           </div>
         </div>
-
-        {/* Test credentials */}
-        <div className="mt-8 p-4 bg-white rounded-lg shadow-md border border-blue-200">
-          <p className="text-xs text-gray-600 font-medium mb-2">💡 Тестові облікові дані:</p>
-          <div className="space-y-1">
-            <p className="text-xs text-gray-700">Email: <span className="font-mono font-bold text-blue-600">admin@test.com</span></p>
-            <p className="text-xs text-gray-700">Пароль: <span className="font-mono font-bold text-blue-600">password</span></p>
-          </div>
-        </div>
       </div>
     </div>
   );
